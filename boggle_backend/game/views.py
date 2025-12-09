@@ -17,6 +17,8 @@ from .serializers import (
 from .hints import choose_hint
 from .practice import create_practice_challenge
 from .difficulty import get_difficulty_config
+from .board_transforms import shuffle_grid, rotate_grid
+from .slug_utils import generate_share_slug
 
 # Dev A scan (FR-02): No game endpoints existed; legacy challenge endpoints are in api/views.py.
 # Plan for FR-03: Add a "my challenges" listing that filters by authenticated user and reuses the Challenge model with a slim serializer.
@@ -143,6 +145,106 @@ class SessionCreateView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def _get_user_id(self, request):
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            return str(user.pk)
+        if hasattr(request, 'user_id'):
+            user_id = getattr(request, 'user_id')
+            if user_id is not None:
+                return str(user_id)
+        return None
+
+
+class ChallengeTransformMixin:
+    def _get_active_challenge(self, pk):
+        return get_object_or_404(Challenge.objects.active(), pk=pk)
+
+    def _challenge_response(self, grid):
+        # TODO: Recompute dictionary for transformed grids if needed for gameplay.
+        return {"grid": grid}
+
+
+class ChallengeBySlugView(APIView):
+    """
+    Fetch an active challenge by its shareable slug (FR-11).
+    """
+
+    def get(self, request, share_slug):
+        challenge = get_object_or_404(Challenge.objects.active(), share_slug=share_slug)
+        return Response(ChallengeSerializer(challenge).data, status=status.HTTP_200_OK)
+
+
+class ChallengeShuffleView(APIView, ChallengeTransformMixin):
+    """
+    Return a shuffled grid for an active challenge (FR-12).
+    """
+
+    def post(self, request, pk):
+        challenge = self._get_active_challenge(pk)
+        session_id = request.data.get('session_id')
+        if session_id:
+            session = get_object_or_404(GameSession.objects.select_related('challenge'), pk=session_id, challenge=challenge)
+            if not self._is_owner_or_guest(session, request):
+                return Response(
+                    {"error_code": "FORBIDDEN", "message": "You cannot shuffle this session."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if session.shuffle_uses >= 2:
+                return Response(
+                    {"error_code": "SHUFFLE_LIMIT_REACHED", "message": "Shuffle limit reached for this session."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            session.shuffle_uses += 1
+            session.save(update_fields=['shuffle_uses'])
+
+        shuffled = shuffle_grid(challenge.grid)
+        return Response(self._challenge_response(shuffled), status=status.HTTP_200_OK)
+
+    def _is_owner_or_guest(self, session, request):
+        if session.player_user_id is None:
+            return True
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            return str(user.pk) == session.player_user_id
+        if hasattr(request, 'user_id'):
+            user_id = getattr(request, 'user_id')
+            if user_id is not None:
+                return str(user_id) == session.player_user_id
+        return False
+
+
+class ChallengeRotateView(APIView, ChallengeTransformMixin):
+    """
+    Return a rotated grid for an active challenge (FR-12).
+    """
+
+    def post(self, request, pk):
+        challenge = self._get_active_challenge(pk)
+        angle = request.data.get('angle', 90)
+        direction = request.data.get('direction', 'clockwise')
+        try:
+            angle_int = int(angle)
+            rotated = rotate_grid(challenge.grid, direction=direction, angle=angle_int)
+        except Exception as exc:
+            return Response(
+                {"error_code": "VALIDATION_ERROR", "message": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(self._challenge_response(rotated), status=status.HTTP_200_OK)
+
+    def _is_owner_or_guest(self, session, request):
+        if session.player_user_id is None:
+            return True
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            return str(user.pk) == session.player_user_id
+        if hasattr(request, 'user_id'):
+            user_id = getattr(request, 'user_id')
+            if user_id is not None:
+                return str(user_id) == session.player_user_id
+        return False
 
     def _get_user_id(self, request):
         user = getattr(request, 'user', None)

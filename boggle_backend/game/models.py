@@ -3,6 +3,7 @@ from django.utils import timezone
 
 # Dev A scan (FR-05): No session model exists yet; adding GameSession tied to Challenge.
 # Prior work: FR-02 Challenge model, FR-03 recipients/status, FR-04 soft-delete with active manager.
+from .slug_utils import generate_share_slug
 
 
 class ChallengeQuerySet(models.QuerySet):
@@ -43,6 +44,7 @@ class Challenge(models.Model):
     valid_words = models.JSONField(default=list, blank=True)
     recipients = models.JSONField(default=list, blank=True)  # list of intended recipient identifiers
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    share_slug = models.CharField(max_length=32, unique=True, db_index=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -53,6 +55,11 @@ class Challenge(models.Model):
 
     def __str__(self):
         return f'Challenge {self.id} ({self.difficulty})'
+
+    def save(self, *args, **kwargs):
+        if not self.share_slug:
+            self.share_slug = generate_share_slug()
+        return super().save(*args, **kwargs)
 
 
 class GameSession(models.Model):
@@ -72,6 +79,7 @@ class GameSession(models.Model):
     score = models.IntegerField(default=0)
     submissions = models.JSONField(default=list, blank=True)
     hint_uses = models.PositiveIntegerField(default=0)
+    shuffle_uses = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['-start_time']

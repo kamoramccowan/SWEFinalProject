@@ -22,10 +22,11 @@ class ChallengeSerializer(serializers.ModelSerializer):
             'valid_words',
             'recipients',
             'status',
+            'share_slug',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ('id', 'creator_user_id', 'valid_words', 'status', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'creator_user_id', 'valid_words', 'status', 'share_slug', 'created_at', 'updated_at')
 
     def validate_recipients(self, value):
         if value is None:
