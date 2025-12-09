@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Challenge, GameSession
+from .difficulty import get_difficulty_config, validate_grid_for_difficulty
 
 # Dev A scan (FR-02): We added a Challenge serializer here because no serializer existed in this app; a legacy serializer lives in the "api" app.
 # Plan for FR-03: Reuse Challenge model and add a slim list serializer for "my challenges" to avoid sending heavy fields; include recipients/status fields to match FR-03.
@@ -73,6 +74,12 @@ class ChallengeSerializer(serializers.ModelSerializer):
         if not user_id:
             raise serializers.ValidationError({"creator_user_id": ["Authenticated user is required."]})
         attrs['creator_user_id'] = user_id
+        difficulty = attrs.get('difficulty')
+        grid = attrs.get('grid') or []
+        if difficulty and grid:
+            cfg = get_difficulty_config(difficulty)
+            if cfg and not validate_grid_for_difficulty(grid, difficulty):
+                raise serializers.ValidationError({"grid": [f"Grid must be {cfg['grid_size']}x{cfg['grid_size']} for {difficulty}."]})
         return attrs
 
     def _get_request_user_id(self):
@@ -174,6 +181,12 @@ class GameSessionSerializer(serializers.ModelSerializer):
             if user_id is not None:
                 return str(user_id)
         return None
+
+
+class SessionResultsSerializer(serializers.Serializer):
+    all_valid_words = serializers.ListField(child=serializers.CharField())
+    found_words = serializers.ListField(child=serializers.CharField())
+    score = serializers.IntegerField()
 
 
 class SessionSubmitWordSerializer(serializers.Serializer):

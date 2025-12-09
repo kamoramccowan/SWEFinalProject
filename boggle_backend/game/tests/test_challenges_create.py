@@ -59,8 +59,12 @@ class ChallengeCreateTests(APITestCase):
         payload = {
             "title": "Should Ignore Client Creator",
             "grid": [
-                ["A", "B"],
-                ["C", "D"],
+                ["A", "B", "C", "D", "E", "F"],
+                ["G", "H", "I", "J", "K", "L"],
+                ["M", "N", "O", "P", "Q", "R"],
+                ["S", "T", "U", "V", "W", "X"],
+                ["Y", "Z", "A", "B", "C", "D"],
+                ["E", "F", "G", "H", "I", "J"],
             ],
             "difficulty": "hard",
             "creator_user_id": "malicious-client",

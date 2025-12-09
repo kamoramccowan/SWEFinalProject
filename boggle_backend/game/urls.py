@@ -7,6 +7,8 @@ from .views import (
     SessionCreateView,
     SessionSubmitWordView,
     SessionEndView,
+    SessionResultsView,
+    SessionHintView,
 )
 
 # Dev A scan: new router for game-specific endpoints; legacy API routes live under api/urls.py.
@@ -18,4 +20,6 @@ urlpatterns = [
     path('sessions/', SessionCreateView.as_view(), name='game_sessions_create'),
     path('sessions/<int:pk>/submit-word/', SessionSubmitWordView.as_view(), name='game_sessions_submit_word'),
     path('sessions/<int:pk>/end/', SessionEndView.as_view(), name='game_sessions_end'),
+    path('sessions/<int:pk>/results/', SessionResultsView.as_view(), name='game_sessions_results'),
+    path('sessions/<int:pk>/hint/', SessionHintView.as_view(), name='game_sessions_hint'),
 ]

@@ -16,7 +16,12 @@ class ChallengeApiContractTests(APITestCase):
         payload = {
             "title": "Contract Board",
             "description": "Doc",
-            "grid": [["A", "B"], ["C", "D"]],
+            "grid": [
+                ["A", "B", "C", "D"],
+                ["E", "F", "G", "H"],
+                ["I", "J", "K", "L"],
+                ["M", "N", "O", "P"],
+            ],
             "difficulty": "easy",
             "recipients": ["friend@example.com"],
         }
@@ -46,7 +51,12 @@ class ChallengeApiContractTests(APITestCase):
         payload = {
             "title": "Contract Board",
             "description": "Doc",
-            "grid": [["A", "B"], ["C", "D"]],
+            "grid": [
+                ["A", "B", "C", "D"],
+                ["E", "F", "G", "H"],
+                ["I", "J", "K", "L"],
+                ["M", "N", "O", "P"],
+            ],
             "difficulty": "easy",
         }
         self.client.force_authenticate(user=self.user)

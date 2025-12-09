@@ -71,6 +71,7 @@ class GameSession(models.Model):
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)  # will be set by FR-13
     score = models.IntegerField(default=0)
     submissions = models.JSONField(default=list, blank=True)
+    hint_uses = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['-start_time']

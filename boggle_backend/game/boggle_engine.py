@@ -8,6 +8,7 @@ from typing import Iterable, List, Set
 from django.utils import timezone
 
 from .models import Challenge
+from .difficulty import get_difficulty_config
 
 
 def _normalize_word(word: str) -> str:
@@ -79,3 +80,10 @@ def score_word(word: str) -> int:
     if length < 3:
         return 0
     return length
+
+
+def meets_min_length(word: str, difficulty: str | None) -> bool:
+    cfg = get_difficulty_config(difficulty or "")
+    if not cfg:
+        return True
+    return len(_normalize_word(word)) >= cfg.get("min_word_length", 0)

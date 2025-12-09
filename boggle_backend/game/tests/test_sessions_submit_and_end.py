@@ -43,6 +43,7 @@ class SessionSubmitAndEndTests(APITestCase):
         self.assertEqual(self.session.submissions[0]["word"], "TEST")
         self.assertTrue(self.session.submissions[0]["is_valid"])
         self.assertGreater(self.session.score, 0)
+        self.assertEqual(self.session.challenge.difficulty, "easy")
 
     def test_submit_after_timeout(self):
         self.session.start_time = timezone.now() - timedelta(seconds=600)
@@ -76,7 +77,7 @@ class SessionSubmitAndEndTests(APITestCase):
 
     def test_invalid_word_does_not_increase_score(self):
         self.client.force_authenticate(user=self.user)
-        response = self.client.post(self.submit_url, {"word": "zzz"}, format='json')
+        response = self.client.post(self.submit_url, {"word": "zz"}, format='json')  # below min length for easy is 3
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.session.refresh_from_db()
         self.assertEqual(self.session.score, 0)
