@@ -1,0 +1,25 @@
+.Toggle-game-state {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* Container around the Select */
+.Input-select-size {
+  display: flex;
+  align-items: center;
+}
+
+/* Make it stack nicely on small screens */
+@media (max-width: 768px) {
+  .Toggle-game-state {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .Input-select-size {
+    justify-content: center;
+  }
+}

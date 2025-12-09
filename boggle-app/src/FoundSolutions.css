@@ -1,0 +1,39 @@
+.Found-solutions-list {
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 20px 24px;
+
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+
+  text-align: left;
+}
+
+.Found-solutions-list h2,
+.Found-solutions-list h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+/* List of words */
+.Found-solutions-list ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  max-height: 220px;      /* scroll if lots of words */
+  overflow-y: auto;
+}
+
+.Found-solutions-list li {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 2px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.Found-solutions-list li:last-child {
+  border-bottom: none;
+}
