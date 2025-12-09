@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
-from .models import Challenge
+from .models import Challenge, GameSession
 
 # Dev A scan (FR-02): We added a Challenge serializer here because no serializer existed in this app; a legacy serializer lives in the "api" app.
 # Plan for FR-03: Reuse Challenge model and add a slim list serializer for "my challenges" to avoid sending heavy fields; include recipients/status fields to match FR-03.
+# Plan for FR-05: Add GameSession serializer for starting challenge sessions, validating active challenge and binding player_user_id from request.
+# Plan for FR-06: Add a submission serializer for one-word submission.
 
 
 class ChallengeSerializer(serializers.ModelSerializer):
@@ -107,3 +109,78 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             'status',
             'created_at',
         ]
+
+
+class GameSessionSerializer(serializers.ModelSerializer):
+    challenge_id = serializers.IntegerField(write_only=True)
+    challenge = serializers.PrimaryKeyRelatedField(read_only=True)
+    duration_seconds = serializers.IntegerField(read_only=True, allow_null=True)
+    submissions = serializers.JSONField(read_only=True)
+
+    class Meta:
+        model = GameSession
+        fields = [
+            'id',
+            'challenge',
+            'challenge_id',
+            'player_user_id',
+            'mode',
+            'start_time',
+            'end_time',
+            'duration_seconds',
+            'score',
+            'submissions',
+        ]
+        read_only_fields = (
+            'id',
+            'challenge',
+            'player_user_id',
+            'start_time',
+            'end_time',
+            'duration_seconds',
+            'score',
+            'submissions',
+        )
+
+    def validate_challenge_id(self, value):
+        try:
+            return Challenge.objects.active().get(pk=value)
+        except Challenge.DoesNotExist:
+            raise serializers.ValidationError("Challenge not found or unavailable.")
+
+    def validate_mode(self, value):
+        if value not in dict(GameSession.MODE_CHOICES):
+            raise serializers.ValidationError("Invalid mode.")
+        return value
+
+    def create(self, validated_data):
+        challenge = validated_data.pop('challenge_id')
+        user_id = self._get_request_user_id()
+        return GameSession.objects.create(
+            challenge=challenge,
+            player_user_id=user_id,
+            mode=validated_data.get('mode', GameSession.MODE_CHALLENGE),
+        )
+
+    def _get_request_user_id(self):
+        request = self.context.get('request')
+        if not request:
+            return None
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            return str(user.pk)
+        if hasattr(request, 'user_id'):
+            user_id = getattr(request, 'user_id')
+            if user_id is not None:
+                return str(user_id)
+        return None
+
+
+class SessionSubmitWordSerializer(serializers.Serializer):
+    word = serializers.CharField(max_length=64)
+
+    def validate_word(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Word cannot be empty.")
+        return value
