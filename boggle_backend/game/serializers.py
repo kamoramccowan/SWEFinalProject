@@ -2,8 +2,8 @@ from rest_framework import serializers
 
 from .models import Challenge
 
-# Dev A scan: No serializer in this app; legacy serializer lives in the "api" app.
-# For FR-02 we add a Challenge serializer that validates the grid and binds creator_user_id from the request.
+# Dev A scan (FR-02): We added a Challenge serializer here because no serializer existed in this app; a legacy serializer lives in the "api" app.
+# Plan for FR-03: Reuse Challenge model and add a slim list serializer for "my challenges" to avoid sending heavy fields; include recipients/status fields to match FR-03.
 
 
 class ChallengeSerializer(serializers.ModelSerializer):
@@ -17,10 +17,24 @@ class ChallengeSerializer(serializers.ModelSerializer):
             'grid',
             'difficulty',
             'valid_words',
+            'recipients',
+            'status',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ('id', 'creator_user_id', 'valid_words', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'creator_user_id', 'valid_words', 'status', 'created_at', 'updated_at')
+
+    def validate_recipients(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Recipients must be a list of identifiers (e.g., emails/usernames).")
+        cleaned = []
+        for item in value:
+            text = str(item).strip()
+            if text:
+                cleaned.append(text)
+        return cleaned
 
     def validate_grid(self, value):
         if not isinstance(value, list) or not value:
@@ -77,3 +91,19 @@ class ChallengeSerializer(serializers.ModelSerializer):
                 return str(user_id)
 
         return None
+
+
+class ChallengeListSerializer(serializers.ModelSerializer):
+    """Slim serializer for listing current user's challenges without heavy fields."""
+
+    class Meta:
+        model = Challenge
+        fields = [
+            'id',
+            'title',
+            'description',
+            'difficulty',
+            'recipients',
+            'status',
+            'created_at',
+        ]

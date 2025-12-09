@@ -22,6 +22,7 @@ class ChallengeCreateTests(APITestCase):
                 ["g", "a", "m", "e"],
             ],
             "difficulty": "easy",
+            "recipients": ["friend@example.com"],
         }
 
         self.client.force_authenticate(user=self.user)
@@ -33,6 +34,8 @@ class ChallengeCreateTests(APITestCase):
         self.assertEqual(response.data["difficulty"], payload["difficulty"])
         # Grid is uppercased during validation
         self.assertEqual(response.data["grid"][0][0], "T")
+        self.assertEqual(response.data["recipients"], ["friend@example.com"])
+        self.assertEqual(response.data["status"], "active")
         self.assertIn("created_at", response.data)
 
     def test_reject_non_square_grid(self):
