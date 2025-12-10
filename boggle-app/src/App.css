@@ -1,0 +1,23 @@
+/* Background for the whole page */
+body {
+  margin: 0;
+  background: radial-gradient(circle at top left, #e0f2fe, #f9fafb);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Main app container */
+.App {
+  max-width: 960px;
+  margin: 40px auto;
+  padding: 24px 32px 40px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.16);
+  color: #111827;
+}
+
+/* Logo at the top */
+.logo {
+  display: block;
+  margin: 0 auto 24px;
+}
