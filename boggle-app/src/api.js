@@ -69,40 +69,30 @@ export async function endSession(sessionId) {
   return resp.data;
 }
 
-export async function sessionResults(sessionId) {
-  const resp = await api.get(`/sessions/${sessionId}/results/`);
+export async function fetchSession(sessionId) {
+  const resp = await api.get(`/sessions/${sessionId}/`);
   return resp.data;
 }
 
-export async function sessionHint(sessionId) {
-  const resp = await api.get(`/sessions/${sessionId}/hint/`);
+// Leaderboard
+export async function fetchLeaderboard(challengeId) {
+  const resp = await api.get(`/challenges/${challengeId}/leaderboard/`);
   return resp.data;
 }
 
-export async function shuffleBoard(challengeId) {
-  const resp = await api.post(`/challenges/${challengeId}/shuffle/`);
+export async function fetchGlobalLeaderboard() {
+  const resp = await api.get("/leaderboard/global/");
   return resp.data;
 }
 
-export async function rotateBoard(challengeId) {
-  const resp = await api.post(`/challenges/${challengeId}/rotate/`);
-  return resp.data;
-}
-
-// Leaderboards
-export async function fetchDailyLeaderboard() {
-  const resp = await api.get("/leaderboards/daily/");
-  return resp.data;
-}
-
-// Daily challenge
+// Daily Challenge
 export async function fetchDailyChallenge() {
   const resp = await api.get("/daily-challenge/");
   return resp.data;
 }
 
 // Stats
-export async function fetchStats() {
+export async function fetchUserStats() {
   const resp = await api.get("/stats/");
   return resp.data;
 }
