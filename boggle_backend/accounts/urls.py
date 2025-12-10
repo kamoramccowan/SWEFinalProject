@@ -10,6 +10,7 @@ from .views import (
     UserStatsView,
     UserSettingsView,
     SendChallengeView,
+    WordDefinitionView,
 )
 
 urlpatterns = [
@@ -22,4 +23,5 @@ urlpatterns = [
     path('stats/', UserStatsView.as_view(), name='user_stats'),
     path('settings/', UserSettingsView.as_view(), name='user_settings'),
     path('challenges/<int:challenge_id>/send/', SendChallengeView.as_view(), name='challenge_send'),
+    path('words/<str:word>/definition/', WordDefinitionView.as_view(), name='word_definition'),
 ]

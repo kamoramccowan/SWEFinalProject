@@ -10,7 +10,7 @@ class User(AbstractUser):
 
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True, db_index=True)
     display_name = models.CharField(max_length=255, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -77,6 +77,15 @@ class UserSettings(models.Model):
         (VISIBILITY_NO_ONE, "No one"),
     ]
 
+    THEME_LIGHT = "light"
+    THEME_DARK = "dark"
+    THEME_HIGH_CONTRAST = "high-contrast"
+    THEME_CHOICES = [
+        (THEME_LIGHT, "Light"),
+        (THEME_DARK, "Dark"),
+        (THEME_HIGH_CONTRAST, "High Contrast"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="settings")
     challenge_visibility = models.CharField(
         max_length=20,
@@ -85,6 +94,8 @@ class UserSettings(models.Model):
     )
     allow_incoming_challenges = models.BooleanField(default=True)
     allowed_sender_user_ids = models.JSONField(default=list, blank=True)
+    theme = models.CharField(max_length=32, choices=THEME_CHOICES, default=THEME_LIGHT)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -110,3 +121,20 @@ class ChallengeInvite(models.Model):
 
     def __str__(self):
         return f"Invite challenge {self.challenge_id} to user {self.recipient_id} from {self.sender_id}"
+
+
+class WordDefinitionCache(models.Model):
+    """
+    Dev B (FR-19): Cache external dictionary lookups to reduce API calls.
+    """
+
+    word = models.CharField(max_length=128, unique=True, db_index=True)
+    payload = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Definition cache for {self.word}"

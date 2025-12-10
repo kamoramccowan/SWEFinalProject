@@ -27,5 +27,11 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserSettings
-        fields = ["challenge_visibility", "allow_incoming_challenges", "allowed_sender_user_ids"]
+        fields = ["challenge_visibility", "allow_incoming_challenges", "allowed_sender_user_ids", "theme"]
         read_only_fields = []
+
+    def validate_theme(self, value):
+        allowed = {choice[0] for choice in UserSettings.THEME_CHOICES}
+        if value not in allowed:
+            raise serializers.ValidationError(f"Theme must be one of: {', '.join(sorted(allowed))}.")
+        return value
