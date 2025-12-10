@@ -13,6 +13,8 @@
 
 .Tile-inner {
   padding: 20px 0;
-  border: 2px solid #1f1f1f;
-  background: #fff;
+  border: 2px solid var(--border-color, #1f1f1f);
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1a1a2e);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

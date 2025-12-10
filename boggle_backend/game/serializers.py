@@ -117,15 +117,24 @@ class ChallengeSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create challenge and populate valid_words using the boggle solver."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         grid = validated_data.get('grid', [])
         # Get language from validated_data (keep it for model save)
         language = validated_data.get('language', 'en')
         
+        logger.info(f"[ChallengeSerializer] Solving boggle for grid={grid}, language={language}")
+        
         # Solve the boggle to find all valid words
         try:
             valid_words = solve_boggle(grid, language=language)
+            logger.info(f"[ChallengeSerializer] Found {len(valid_words)} valid words")
         except Exception as e:
-            # If solver fails, use empty list as fallback
+            # Log the error for debugging
+            logger.error(f"[ChallengeSerializer] solve_boggle failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             valid_words = []
         
         validated_data['valid_words'] = valid_words

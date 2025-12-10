@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
-import { fetchDailyChallenge, fetchMyChallenges } from "../api";
+import { fetchDailyChallenge, fetchMyChallenges, deleteChallenge } from "../api";
 import { useAuth } from "../AuthContext";
 
 export default function HomePage() {
@@ -36,6 +36,16 @@ export default function HomePage() {
     };
     load();
   }, []);
+
+  const handleDelete = async (challengeId, title) => {
+    if (!window.confirm(`Delete challenge "${title}"?`)) return;
+    try {
+      await deleteChallenge(challengeId);
+      setMine(prev => prev.filter(c => c.id !== challengeId));
+    } catch (err) {
+      setError("Failed to delete challenge.");
+    }
+  };
 
   return (
     <div className="page home">
@@ -86,9 +96,17 @@ export default function HomePage() {
                   {c.players ? `• ${c.players} players` : ""}
                 </div>
               </div>
-              <Link className="outline-button" to={`/play?challenge=${c.id}`}>
-                Play
-              </Link>
+              <div className="card-actions">
+                <Link className="outline-button" to={`/play?challenge=${c.id}`}>
+                  Play
+                </Link>
+                <button
+                  className="delete-button"
+                  onClick={() => handleDelete(c.id, c.title)}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

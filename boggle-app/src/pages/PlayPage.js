@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./PlayPage.css";
 import Board from "../Board";
 import { endSession, fetchDailyChallenge, sessionHint, sessionResults, startSession, submitWord } from "../api";
@@ -10,6 +10,7 @@ function useQuery() {
 
 export default function PlayPage() {
   const query = useQuery();
+  const navigate = useNavigate();
   const challengeId = query.get("challenge");
   const [session, setSession] = useState(null);
   const [daily, setDaily] = useState(null);
@@ -22,13 +23,22 @@ export default function PlayPage() {
   const [timerSeconds, setTimerSeconds] = useState(165); // 2:45 default
   const [timerRunning, setTimerRunning] = useState(false);
   const [autoEnded, setAutoEnded] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [currentHint, setCurrentHint] = useState(null);
+  const [manualChallengeId, setManualChallengeId] = useState("");
+  const MAX_HINTS = 3;
 
   const displayGrid = useMemo(() => {
-    if (daily && session && daily.challenge_id === session.challenge) {
+    // If grid state has content (was set by shuffle/rotate or session start), use it
+    if (grid && grid.length > 0) {
+      return grid;
+    }
+    // Otherwise use daily grid for initial display
+    if (daily && daily.grid) {
       return daily.grid;
     }
-    return grid;
-  }, [daily, session, grid]);
+    return [];
+  }, [daily, grid]);
 
   const persistedSessionKey = useMemo(() => (challengeId ? `play_session_${challengeId}` : null), [challengeId]);
 
@@ -107,7 +117,9 @@ export default function PlayPage() {
     []
   );
   const friendlyPlayers = useMemo(() => {
-    const source = session?.players && session.players.length ? session.players : samplePlayers;
+    if (session && timerRunning) return [{ name: "Player", leader: true, score: 0, words: 0, status: "Playing" }];
+    if (session && results) return [{ name: "Player", leader: true, score: results.score || 0, words: results.found_words?.length || 0, status: "Finished" }];
+    const source = samplePlayers;
     const seen = new Set();
     return source.filter((p) => {
       const key = p.name || p.player_user_id || JSON.stringify(p);
@@ -118,7 +130,7 @@ export default function PlayPage() {
       ...p,
       name: friendlyName(p.name || p.player_user_id),
     }));
-  }, [session, samplePlayers]);
+  }, [session, samplePlayers, timerRunning, results]);
 
   useEffect(() => {
     const loadDaily = async () => {
@@ -137,9 +149,9 @@ export default function PlayPage() {
   }, []);
 
   const handleStart = async () => {
-    const effectiveId = challengeId || (daily && daily.challenge_id);
+    const effectiveId = manualChallengeId || challengeId || (daily && daily.challenge_id);
     if (!effectiveId) {
-      setMessages((m) => [...m, "Provide challenge id via ?challenge=ID or use daily challenge."]);
+      setMessages((m) => [...m, "Enter a challenge ID or use the daily challenge."]);
       return;
     }
     setLoading(true);
@@ -148,6 +160,8 @@ export default function PlayPage() {
     try {
       const s = await startSession(Number(effectiveId));
       setSession(s);
+      setHintsUsed(0);
+      setCurrentHint(null);
       // If backend includes duration, set timer from it (seconds)
       const remaining = remainingFromServer(s);
       setTimerSeconds(Number.isNaN(remaining) ? 165 : remaining);
@@ -180,7 +194,13 @@ export default function PlayPage() {
     if (!session) return;
     try {
       const resp = await submitWord(session.id, word);
-      setMessages((m) => [...m, `${resp.word}: ${resp.is_valid ? "correct" : "incorrect"}`]);
+      if (resp.already_found) {
+        setMessages((m) => [...m, `${resp.word}: already found! 🔄`]);
+      } else if (resp.is_valid) {
+        setMessages((m) => [...m, `${resp.word}: correct ✅ (+${resp.score_delta})`]);
+      } else {
+        setMessages((m) => [...m, `${resp.word}: incorrect ❌`]);
+      }
       setWord("");
     } catch (err) {
       setMessages((m) => [...m, "Submission failed."]);
@@ -189,12 +209,97 @@ export default function PlayPage() {
 
   const handleHint = async () => {
     if (!session) return;
+    if (hintsUsed >= MAX_HINTS) {
+      setMessages((m) => [...m, "No more hints available (max 3 per game)."]);
+      return;
+    }
     try {
       const resp = await sessionHint(session.id);
-      setMessages((m) => [...m, `Hint: ${JSON.stringify(resp.hint)}`]);
+      const hintData = resp.hint || resp;
+      let hintText = "";
+      if (typeof hintData === 'string') {
+        hintText = hintData;
+      } else if (hintData.first_letter && hintData.length) {
+        // Backend provides first_letter and length
+        hintText = `A ${hintData.length}-letter word starts with "${hintData.first_letter.toUpperCase()}"`;
+      } else if (hintData.word) {
+        // Format hint to show partial word
+        const word = hintData.word;
+        const revealChars = Math.min(2, Math.floor(word.length / 2));
+        const startHint = word.slice(0, revealChars).toUpperCase();
+        hintText = `A valid word starts with "${startHint}..." (${word.length} letters)`;
+      } else if (hintData.starts_with) {
+        hintText = `A valid word starts with "${hintData.starts_with.toUpperCase()}..."`;
+      } else if (hintData.ends_with) {
+        hintText = `A valid word ends with "...${hintData.ends_with.toUpperCase()}"`;
+      } else if (hintData === null) {
+        hintText = "No unfound words remain!";
+      } else {
+        hintText = JSON.stringify(hintData);
+      }
+      setCurrentHint(hintText);
+      setHintsUsed((prev) => prev + 1);
+      setMessages((m) => [...m, `💡 Hint ${hintsUsed + 1}/${MAX_HINTS}: ${hintText}`]);
     } catch (err) {
-      setMessages((m) => [...m, "No hints available."]);
+      // Show the actual backend error message if available
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.error_code || "No hints available for this challenge.";
+      setMessages((m) => [...m, `Hint error: ${errorMsg}`]);
     }
+  };
+
+  const handleSaveChallenge = () => {
+    // Save challenge for later - just navigate to home (session persisted in localStorage)
+    if (persistedSessionKey && session) {
+      // Keep the session in localStorage so it shows as "active"
+      setMessages((m) => [...m, "Challenge saved! Returning to home..."]);
+      setTimeout(() => navigate("/"), 500);
+    } else {
+      setMessages((m) => [...m, "No active session to save."]);
+    }
+  };
+
+  // Local shuffle - rearranges tiles randomly
+  const handleShuffle = () => {
+    if (!session || !displayGrid || !displayGrid.length) return;
+
+    // Flatten grid, shuffle, and rebuild
+    const rows = displayGrid.length;
+    const cols = displayGrid[0].length;
+    const flat = displayGrid.flatMap(row => [...row]);
+
+    // Fisher-Yates shuffle
+    for (let i = flat.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [flat[i], flat[j]] = [flat[j], flat[i]];
+    }
+
+    // Rebuild grid
+    const newGrid = [];
+    for (let i = 0; i < rows; i++) {
+      newGrid.push(flat.slice(i * cols, (i + 1) * cols));
+    }
+
+    setGrid(newGrid);
+    setMessages((m) => [...m, "🔀 Board shuffled!"]);
+  };
+
+  // Local 90-degree clockwise rotation
+  const handleRotate = () => {
+    if (!session || !displayGrid || !displayGrid.length) return;
+
+    const n = displayGrid.length;
+    // True 90-degree clockwise: new[i][j] = old[n-1-j][i]
+    const rotated = [];
+    for (let i = 0; i < n; i++) {
+      const newRow = [];
+      for (let j = 0; j < n; j++) {
+        newRow.push(displayGrid[n - 1 - j][i]);
+      }
+      rotated.push(newRow);
+    }
+
+    setGrid(rotated);
+    setMessages((m) => [...m, "🔄 Board rotated 90° clockwise!"]);
   };
 
   const handleEnd = async (auto = false) => {
@@ -221,16 +326,16 @@ export default function PlayPage() {
 
   return (
     <div className="page play-page">
-        <div className="play-header">
-          <div>
-            <div className="play-title">
-              {session ? session.challenge_title || session.title || "[Challenge]" : "[Challenge Name]"}
-            </div>
-            <div className="play-meta">
-            Round 1 of 3 - {boardSizeLabel(displayGrid)} Board - {difficultyLabel(session?.challenge_difficulty || session?.difficulty)}
-            </div>
-            <div className="play-note">NOTE: Timer counts down • Turns red at :30 • Auto-submit at 0:00</div>
+      <div className="play-header">
+        <div>
+          <div className="play-title">
+            {session ? session.challenge_title || session.title || "[Challenge]" : "[Challenge Name]"}
           </div>
+          <div className="play-meta">
+            Round 1 of 3 - {boardSizeLabel(displayGrid)} Board - {difficultyLabel(session?.challenge_difficulty || session?.difficulty)} - {languageLabel(session?.challenge_language || session?.language || daily?.language)}
+          </div>
+          <div className="play-note">NOTE: Timer counts down • Turns red at :30 • Auto-submit at 0:00</div>
+        </div>
         <div className={`timer-box ${timerSeconds <= 30 ? "warn" : ""}`}>[Time: {formatTimer(timerSeconds)}]</div>
         <div className="players-head">
           <div className="players-title">Players (4/8)</div>
@@ -267,13 +372,19 @@ export default function PlayPage() {
           <input
             type="text"
             placeholder="Challenge ID"
-            defaultValue={challengeId || ""}
-            readOnly
+            value={manualChallengeId || challengeId || ""}
+            onChange={(e) => setManualChallengeId(e.target.value)}
+            disabled={!!session}
           />
           <button onClick={handleStart} disabled={loading || (session && (timerRunning || results))}>
             {loading ? "Starting..." : "Start"}
           </button>
-          <button type="button" onClick={handleHint} disabled={!session || !!results}>Hint</button>
+          <button type="button" onClick={handleHint} disabled={!session || !!results || hintsUsed >= MAX_HINTS}>
+            Hint ({MAX_HINTS - hintsUsed} left)
+          </button>
+          <button type="button" onClick={handleShuffle} disabled={!session || !!results}>🔀 Shuffle</button>
+          <button type="button" onClick={handleRotate} disabled={!session || !!results}>🔄 Rotate</button>
+          <button type="button" onClick={handleSaveChallenge} disabled={!session || !!results}>Save Challenge</button>
           <button type="button" onClick={handleEnd} disabled={!session || !!results}>End Game</button>
         </div>
         <form className="word-form" onSubmit={handleSubmitWord}>
@@ -330,3 +441,7 @@ function friendlyName(raw) {
   return str;
 }
 
+function languageLabel(raw) {
+  const map = { en: "🇺🇸 English", es: "🇪🇸 Spanish", fr: "🇫🇷 French" };
+  return map[raw] || map.en;
+}

@@ -51,11 +51,12 @@ class ChallengeCreateView(APIView):
             try:
                 grid = challenge.grid or []
                 size = len(grid) if isinstance(grid, list) else 0
+                valid_words = challenge.valid_words or []
                 LegacyGames.objects.create(
                     name=challenge.title or f"Challenge {challenge.id}",
                     size=size,
                     grid=json.dumps(grid),
-                    foundwords="[]",
+                    foundwords=json.dumps(valid_words),
                 )
             except Exception:
                 # Do not block challenge creation if legacy mirror fails.
@@ -85,9 +86,20 @@ class ChallengeMineView(ListAPIView):
         user_id = self._get_user_id()
         if not user_id:
             return Challenge.objects.none()
+        
+        # Get IDs of challenges where user has already completed (ended) a session
+        from .models import GameSession
+        completed_challenge_ids = GameSession.objects.filter(
+            player_user_id=str(user_id),
+            end_time__isnull=False  # Session has ended
+        ).values_list('challenge_id', flat=True)
+        
+        # Return active challenges created by user, EXCLUDING those already completed
         return Challenge.objects.filter(
             creator_user_id=str(user_id),
             status=Challenge.STATUS_ACTIVE,
+        ).exclude(
+            id__in=completed_challenge_ids
         ).order_by('-created_at')
 
     def _get_user_id(self):
@@ -328,6 +340,24 @@ class SessionSubmitWordView(APIView):
 
         word = serializer.validated_data['word']
         word_norm = word.strip().upper()
+        
+        # Check for duplicate - already found valid words should not be scored again
+        already_found = {s.get("word") for s in session.submissions if s.get("is_valid")}
+        if word_norm in already_found:
+            return Response(
+                {
+                    "status": "accepted",
+                    "word": word_norm,
+                    "session_id": session.id,
+                    "is_valid": False,
+                    "already_found": True,
+                    "message": "This word was already found!",
+                    "score_delta": 0,
+                    "score": session.score,
+                },
+                status=status.HTTP_200_OK,
+            )
+        
         valid_set = get_valid_words(session.challenge)
         is_valid = (
             word_norm in valid_set
@@ -429,6 +459,7 @@ class SessionHintView(APIView):
     """
     Provide a simple hint for active sessions (FR-08).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def get(self, request, pk):
         session = get_object_or_404(GameSession.objects.select_related('challenge'), pk=pk)
@@ -584,3 +615,56 @@ class ChallengeGenerateView(APIView):
             'language': language,
             'word_count': len(valid_words)
         }, status=status.HTTP_200_OK)
+
+
+class ChallengeInviteView(APIView):
+    """
+    Send a challenge invite via email to a registered user.
+    POST /challenges/<pk>/invite/
+    Body: { "email": "user@example.com" }
+    """
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsRegisteredUser]
+    
+    def post(self, request, pk):
+        from .email_service import send_challenge_invite
+        from accounts.models import User
+        
+        challenge = get_object_or_404(Challenge, pk=pk)
+        
+        # Get recipient email from request
+        recipient_email = request.data.get('email', '').strip().lower()
+        if not recipient_email:
+            return Response(
+                {'error': 'Email address is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user exists with this email (case-insensitive)
+        # Note: We allow sending invites to any email, even unregistered users
+        recipient_user = User.objects.filter(email__iexact=recipient_email).first()
+        user_is_registered = recipient_user is not None
+        
+        # Get inviter name
+        inviter_name = getattr(request.user, 'display_name', None) or getattr(request.user, 'email', 'A friend')
+        
+        # Send the invite email
+        result = send_challenge_invite(
+            to_email=recipient_email,
+            challenge_code=str(challenge.id),
+            inviter_name=inviter_name
+        )
+        
+        if result['success']:
+            return Response({
+                'message': result['message'],
+                'challenge_id': challenge.id,
+                'recipient': recipient_email,
+                'user_is_registered': user_is_registered,
+                'demo_mode': result.get('demo_mode', False)
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': result['message']},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

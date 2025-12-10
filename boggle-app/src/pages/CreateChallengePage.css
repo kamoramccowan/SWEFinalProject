@@ -1,22 +1,23 @@
 .create-page {
   padding: 28px;
-  background: #fdfdfd;
+  background: var(--bg-primary, #fdfdfd);
 }
 
 .panel {
-  border: 2px solid #1f1f1f;
+  border: 2px solid var(--border-color, #1f1f1f);
   padding: 24px;
-  background: #fff;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+  background: var(--bg-secondary, #fff);
+  box-shadow: 0 6px 14px var(--shadow, rgba(0, 0, 0, 0.06));
 }
 
 .panel h2 {
   margin: 0 0 6px 0;
   font-size: 26px;
+  color: var(--text-primary, #1a1a2e);
 }
 
 .subtle {
-  color: #5f6573;
+  color: var(--text-muted, #5f6573);
   margin: 0 0 18px 0;
 }
 
@@ -30,6 +31,7 @@
   display: block;
   font-weight: 600;
   margin-bottom: 8px;
+  color: var(--text-primary, #1a1a2e);
 }
 
 .challenge-form input,
@@ -37,10 +39,12 @@
 .challenge-form select {
   padding: 12px;
   font-size: 1rem;
-  border: 1px solid #1f1f1f;
+  border: 1px solid var(--border-color, #1f1f1f);
   border-radius: 0;
   width: 100%;
   box-sizing: border-box;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1a1a2e);
 }
 
 .challenge-form textarea {
@@ -48,7 +52,7 @@
 }
 
 .helper {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-size: 13px;
   margin-top: 6px;
 }
@@ -60,15 +64,16 @@
 }
 
 .pill {
-  border: 1px solid #1f1f1f;
+  border: 1px solid var(--border-color, #1f1f1f);
   padding: 12px;
-  background: #fff;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1a1a2e);
   cursor: pointer;
   font-weight: 600;
 }
 
 .pill.active {
-  background: #f5f5f5;
+  background: var(--bg-hover, #f5f5f5);
 }
 
 .inline-input {
@@ -83,10 +88,10 @@
 }
 
 .tile {
-  border: 2px solid #1f1f1f;
+  border: 2px solid var(--border-color, #1f1f1f);
   padding: 14px;
   cursor: pointer;
-  background: #fff;
+  background: var(--bg-secondary, #fff);
   transition: transform 120ms ease;
 }
 
@@ -95,16 +100,17 @@
 }
 
 .tile.active {
-  background: #f5f5f5;
+  background: var(--bg-hover, #f5f5f5);
 }
 
 .tile-title {
   font-weight: 600;
   margin-bottom: 6px;
+  color: var(--text-primary, #1a1a2e);
 }
 
 .tile-sub {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-size: 13px;
 }
 
@@ -116,8 +122,9 @@
 .actions button {
   padding: 12px 18px;
   font-weight: 700;
-  border: 1px solid #1f1f1f;
-  background: #ececec;
+  border: 1px solid var(--border-color, #1f1f1f);
+  background: var(--bg-hover, #ececec);
+  color: var(--text-primary, #1a1a2e);
   cursor: pointer;
 }
 
@@ -127,11 +134,11 @@
 }
 
 .error {
-  color: #c00;
+  color: var(--error, #c00);
 }
 
 .success {
-  color: #0a7f2e;
+  color: var(--success, #0a7f2e);
 }
 
 .grid-header {
@@ -143,14 +150,15 @@
 .auto-generate-btn {
   padding: 8px 16px;
   font-weight: 600;
-  border: 2px solid #1f1f1f;
-  background: #e8f5e9;
+  border: 2px solid var(--border-color, #1f1f1f);
+  background: var(--success, #e8f5e9);
+  color: var(--text-primary, #1a1a2e);
   cursor: pointer;
   transition: all 150ms ease;
 }
 
 .auto-generate-btn:hover {
-  background: #c8e6c9;
+  background: var(--bg-hover, #c8e6c9);
   transform: translateY(-1px);
 }
 
@@ -158,4 +166,71 @@
   opacity: 0.7;
   cursor: default;
   transform: none;
+}
+
+/* Invite Section */
+.invite-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--bg-hover, #e8eeff);
+  border: 2px solid var(--accent-primary, #4a69bd);
+  border-radius: 4px;
+}
+
+.invite-section label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.invite-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.invite-row input {
+  flex: 1;
+}
+
+.invite-btn {
+  padding: 12px 20px;
+  background: var(--accent-primary, #4a69bd);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.invite-btn:hover:not(:disabled) {
+  background: var(--accent-secondary, #6c5ce7);
+}
+
+.invite-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invite-message {
+  padding: 10px;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-color, #1f1f1f);
+  margin-bottom: 12px;
+}
+
+.play-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--success, #27ae60);
+  color: white;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.play-btn:hover {
+  opacity: 0.9;
 }

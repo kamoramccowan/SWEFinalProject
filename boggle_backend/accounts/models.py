@@ -10,6 +10,7 @@ class User(AbstractUser):
 
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True, db_index=True)
     display_name = models.CharField(max_length=255, blank=True)
+    avatar_url = models.URLField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 

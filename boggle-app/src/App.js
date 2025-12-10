@@ -10,8 +10,10 @@ import PlayPage from "./pages/PlayPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import StatsPage from "./pages/StatsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
 import DefinitionLookup from "./components/DefinitionLookup";
 import { AuthProvider, useAuth } from "./AuthContext";
+import { ThemeProvider } from "./ThemeContext";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -77,6 +79,14 @@ function AppShell() {
             }
           />
           <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/definitions"
             element={
               <PrivateRoute>
@@ -95,11 +105,13 @@ function AppShell() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

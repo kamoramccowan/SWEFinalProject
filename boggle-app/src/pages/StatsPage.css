@@ -1,22 +1,24 @@
 .stats-page {
   padding: 28px;
+  background: var(--bg-primary, #fdfdfd);
 }
 
 .stats-page h2 {
   margin: 0 0 24px 0;
   font-size: 28px;
+  color: var(--text-primary, #1a1a2e);
 }
 
 .loading {
-  color: #666;
+  color: var(--text-muted, #666);
   padding: 20px;
 }
 
 .error {
-  color: #c00;
+  color: var(--error, #c00);
   padding: 12px;
-  background: #fee;
-  border: 1px solid #fcc;
+  background: var(--bg-hover, #fee);
+  border: 1px solid var(--error, #fcc);
   margin-bottom: 16px;
 }
 
@@ -33,21 +35,21 @@
 }
 
 .stat-card {
-  border: 2px solid #1f1f1f;
+  border: 2px solid var(--border-color, #1f1f1f);
   padding: 16px;
-  background: #fff;
+  background: var(--bg-secondary, #fff);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: var(--accent-primary, #4a69bd);
   margin-bottom: 8px;
 }
 
 .stat-value {
   font-size: 32px;
   font-weight: 700;
-  color: #1f1f1f;
+  color: var(--text-primary, #1f1f1f);
 }
 
 /* Charts Row - side by side layout */
@@ -59,15 +61,15 @@
 }
 
 .chart-container {
-  border: 2px solid #1f1f1f;
+  border: 2px solid var(--border-color, #1f1f1f);
   padding: 20px;
-  background: #fff;
+  background: var(--bg-secondary, #fff);
 }
 
 .chart-container h3 {
   margin: 0 0 16px 0;
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary, #333);
 }
 
 .chart-wrapper {

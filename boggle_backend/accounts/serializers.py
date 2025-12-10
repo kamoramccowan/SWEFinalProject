@@ -12,7 +12,7 @@ class AuthenticatedUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "firebase_uid", "email", "display_name", "is_registered", "role")
+        fields = ("id", "firebase_uid", "email", "display_name", "avatar_url", "is_registered", "role")
         read_only_fields = fields
 
     def get_is_registered(self, obj) -> bool:
@@ -20,6 +20,19 @@ class AuthenticatedUserSerializer(serializers.ModelSerializer):
 
     def get_role(self, obj) -> str:
         return "registered" if obj and obj.is_authenticated else "guest"
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile fields (display_name, avatar_url)."""
+
+    class Meta:
+        model = User
+        fields = ["display_name", "avatar_url"]
+
+    def validate_avatar_url(self, value):
+        if value and len(value) > 500:
+            raise serializers.ValidationError("Avatar URL is too long (max 500 characters).")
+        return value
 
 
 class UserSettingsSerializer(serializers.ModelSerializer):
@@ -35,3 +48,4 @@ class UserSettingsSerializer(serializers.ModelSerializer):
         if value not in allowed:
             raise serializers.ValidationError(f"Theme must be one of: {', '.join(sorted(allowed))}.")
         return value
+

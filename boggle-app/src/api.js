@@ -48,6 +48,11 @@ export async function deleteChallenge(id) {
   return resp.data;
 }
 
+export async function inviteToChallenge(challengeId, email) {
+  const resp = await api.post(`/challenges/${challengeId}/invite/`, { email });
+  return resp.data;
+}
+
 // Sessions
 export async function startSession(challengeId) {
   const resp = await api.post("/sessions/", { challenge_id: challengeId, mode: "challenge" });
@@ -74,6 +79,16 @@ export async function sessionHint(sessionId) {
   return resp.data;
 }
 
+export async function shuffleBoard(challengeId) {
+  const resp = await api.post(`/challenges/${challengeId}/shuffle/`);
+  return resp.data;
+}
+
+export async function rotateBoard(challengeId) {
+  const resp = await api.post(`/challenges/${challengeId}/rotate/`);
+  return resp.data;
+}
+
 // Leaderboards
 export async function fetchDailyLeaderboard() {
   const resp = await api.get("/leaderboards/daily/");
@@ -89,6 +104,17 @@ export async function fetchDailyChallenge() {
 // Stats
 export async function fetchStats() {
   const resp = await api.get("/stats/");
+  return resp.data;
+}
+
+// Profile
+export async function fetchProfile() {
+  const resp = await api.get("/profile/");
+  return resp.data;
+}
+
+export async function updateProfile(payload) {
+  const resp = await api.patch("/profile/", payload);
   return resp.data;
 }
 

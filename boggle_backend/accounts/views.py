@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 
 from .authentication import FirebaseAuthentication
 from .permissions import IsAuthenticatedFirebaseUser
-from .serializers import AuthenticatedUserSerializer, UserSettingsSerializer
+from .serializers import AuthenticatedUserSerializer, UserSettingsSerializer, UserProfileSerializer
 from .daily import get_or_create_daily_challenge
 from datetime import date
 from .leaderboards import get_daily_leaderboard, get_challenge_leaderboard, compute_session_rank, milestone_for_rank
@@ -175,6 +175,34 @@ class UserSettingsView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(
             {"error_code": "VALIDATION_ERROR", "message": "Invalid settings payload.", "details": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class UserProfileView(APIView):
+    """
+    Read/update user profile (display_name, avatar_url).
+    """
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticatedFirebaseUser]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            {"error_code": "VALIDATION_ERROR", "message": "Invalid profile payload.", "details": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

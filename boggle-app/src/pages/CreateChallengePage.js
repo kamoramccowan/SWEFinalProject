@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "./CreateChallengePage.css";
-import { createChallenge, generateChallenge } from "../api";
+import { createChallenge, generateChallenge, inviteToChallenge } from "../api";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateChallengePage() {
@@ -16,6 +16,10 @@ export default function CreateChallengePage() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [createdChallengeId, setCreatedChallengeId] = useState(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
   const navigate = useNavigate();
 
   const boardTemplates = useMemo(
@@ -27,16 +31,56 @@ export default function CreateChallengePage() {
     []
   );
 
+  // Common Boggle digraphs (multi-letter tiles treated as one cell)
+  const DIGRAPHS = ['QU', 'ST', 'IE', 'TH', 'AN', 'ER', 'IN', 'HE'];
+
+  const parseRowToTiles = (rowText) => {
+    const text = rowText.toUpperCase();
+    const tiles = [];
+    let i = 0;
+    while (i < text.length) {
+      // Check for digraphs (2-letter tiles)
+      if (i + 1 < text.length) {
+        const twoChar = text.slice(i, i + 2);
+        if (DIGRAPHS.includes(twoChar)) {
+          tiles.push(twoChar);
+          i += 2;
+          continue;
+        }
+      }
+      // Single letter tile
+      tiles.push(text[i]);
+      i += 1;
+    }
+    return tiles;
+  };
+
   const parseGrid = () => {
     const rows = gridText
       .split("\n")
       .map((r) => r.trim())
       .filter(Boolean)
-      .map((row) => row.split("").map((c) => c.toUpperCase()));
-    const size = rows.length ? rows[0].length : 0;
-    if (!rows.length || rows.some((r) => r.length !== size)) {
-      throw new Error("Grid must be a square with equal-length rows.");
+      .map((row) => parseRowToTiles(row));
+
+    if (!rows.length) {
+      throw new Error("Grid is empty. Please enter letters row by row.");
     }
+
+    const expectedLength = rows[0].length;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].length !== expectedLength) {
+        throw new Error(
+          `Row ${i + 1} has ${rows[i].length} tiles, but row 1 has ${expectedLength}. All rows must have the same number of tiles. (Note: Qu, St, Ie, Th count as 1 tile)`
+        );
+      }
+    }
+
+    if (rows.length !== expectedLength) {
+      throw new Error(
+        `Grid has ${rows.length} rows but ${expectedLength} columns. Grid must be square (e.g., 4x4, 5x5).`
+      );
+    }
+
     return rows;
   };
 
@@ -75,6 +119,7 @@ export default function CreateChallengePage() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setCreatedChallengeId(null);
     try {
       const grid = parseGrid();
       const minutes =
@@ -92,19 +137,35 @@ export default function CreateChallengePage() {
         grid,
       });
       const challengeId = created?.id || created?.challenge_id;
-      setSuccess("Challenge created successfully.");
-      // Navigate to play view if we have an id; otherwise back home.
-      setTimeout(() => {
-        if (challengeId) {
-          navigate(`/play?challenge=${challengeId}`);
-        } else {
-          navigate("/");
-        }
-      }, 400);
+      setCreatedChallengeId(challengeId);
+      setSuccess(`Challenge created! ID: ${challengeId}. You can now invite players or go to play.`);
     } catch (err) {
       setError(err.message || "Unable to create challenge.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!createdChallengeId || !inviteEmail.trim()) return;
+    setSendingInvite(true);
+    setInviteMessage("");
+    try {
+      const result = await inviteToChallenge(createdChallengeId, inviteEmail.trim());
+      setInviteMessage(result.message || "Invite sent!");
+      setInviteEmail("");
+    } catch (err) {
+      setInviteMessage(err.response?.data?.error || err.message || "Failed to send invite.");
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleGoToPlay = () => {
+    if (createdChallengeId) {
+      navigate(`/play?challenge=${createdChallengeId}`);
+    } else {
+      navigate("/");
     }
   };
 
@@ -228,8 +289,35 @@ export default function CreateChallengePage() {
           {error && <div className="error">{error}</div>}
           {success && <div className="success">{success}</div>}
 
+          {/* Invite Section - shows after challenge is created */}
+          {createdChallengeId && (
+            <div className="invite-section">
+              <label>Invite Player via Email</label>
+              <div className="invite-row">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="friend@email.com"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendInvite}
+                  disabled={sendingInvite || !inviteEmail.trim()}
+                  className="invite-btn"
+                >
+                  {sendingInvite ? "Sending..." : "📧 Send Invite"}
+                </button>
+              </div>
+              {inviteMessage && <div className="invite-message">{inviteMessage}</div>}
+              <button type="button" onClick={handleGoToPlay} className="play-btn">
+                🎮 Go to Play
+              </button>
+            </div>
+          )}
+
           <div className="actions">
-            <button type="submit" disabled={loading}>
+            <button type="submit" disabled={loading || createdChallengeId}>
               {loading ? "Saving..." : "Create Challenge"}
             </button>
           </div>

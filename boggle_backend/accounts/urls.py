@@ -9,6 +9,7 @@ from .views import (
     SessionRankView,
     UserStatsView,
     UserSettingsView,
+    UserProfileView,
     SendChallengeView,
     WordDefinitionView,
 )
@@ -22,6 +23,8 @@ urlpatterns = [
     path('sessions/<int:pk>/rank/', SessionRankView.as_view(), name='session_rank'),
     path('stats/', UserStatsView.as_view(), name='user_stats'),
     path('settings/', UserSettingsView.as_view(), name='user_settings'),
+    path('profile/', UserProfileView.as_view(), name='user_profile'),
     path('challenges/<int:challenge_id>/send/', SendChallengeView.as_view(), name='challenge_send'),
     path('words/<str:word>/definition/', WordDefinitionView.as_view(), name='word_definition'),
 ]
+

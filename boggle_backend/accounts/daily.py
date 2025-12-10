@@ -5,6 +5,7 @@ from typing import Optional
 from django.utils import timezone
 
 from game.models import Challenge
+from game.word_solver import generate_solvable_grid, solve_boggle
 from .models import DailyChallenge, DailyChallengeResult, User
 
 
@@ -12,25 +13,50 @@ def get_or_create_daily_challenge(for_date: date) -> DailyChallenge:
     """
     Lazy resolver for the daily challenge:
     - If already set for the date, return it.
-    - Otherwise, pick a random active challenge and record it.
+    - Otherwise, pick or generate a challenge and record it.
     """
     daily = DailyChallenge.objects.filter(date=for_date).select_related("challenge").first()
     if daily:
         return daily
 
-    challenge = pick_active_challenge()
-    daily = DailyChallenge.objects.create(date=for_date, challenge=challenge, source="random")
+    challenge = pick_or_generate_challenge()
+    daily = DailyChallenge.objects.create(date=for_date, challenge=challenge, source="generated")
     return daily
 
 
-def pick_active_challenge() -> Challenge:
+def pick_or_generate_challenge() -> Challenge:
     """
-    Choose a random active challenge. If none exist, raise a clear error.
+    Choose a random active challenge with valid words.
+    If none exist or none have valid words, generate a new solvable challenge.
     """
-    active = list(Challenge.objects.active())
-    if not active:
-        raise ValueError("No active challenges available to serve as daily challenge.")
-    return random.choice(active)
+    # First, try to find an existing challenge with valid_words
+    active = list(Challenge.objects.active().exclude(valid_words=[]))
+    if active:
+        return random.choice(active)
+    
+    # No valid challenges exist - generate a new one
+    return generate_daily_challenge()
+
+
+def generate_daily_challenge() -> Challenge:
+    """
+    Generate a new solvable challenge for the daily.
+    """
+    # Generate a solvable 4x4 grid with medium difficulty
+    grid, valid_words = generate_solvable_grid(size=4, difficulty='medium', language='en', min_words=20)
+    
+    # Create the challenge with the generated grid
+    challenge = Challenge.objects.create(
+        title=f"Daily Challenge {date.today().strftime('%Y-%m-%d')}",
+        description="Auto-generated daily challenge",
+        grid=grid,
+        valid_words=valid_words,
+        duration_seconds=180,  # 3 minutes
+        difficulty='medium',
+        language='en',
+        status='active',
+    )
+    return challenge
 
 
 def record_daily_result(challenge: Challenge, user, session_score: int, session_obj=None, player_user_id: str | None = None):

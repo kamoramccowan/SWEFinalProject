@@ -2,9 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./NavBar.css";
 import { useAuth } from "../AuthContext";
+import { useTheme, THEMES } from "../ThemeContext";
 
 export default function NavBar() {
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -67,7 +69,7 @@ export default function NavBar() {
             {dropdownOpen && (
               <div className="user-dropdown">
                 <Link
-                  to="/settings"
+                  to="/profile"
                   className="dropdown-item"
                   onClick={() => setDropdownOpen(false)}
                 >
@@ -81,6 +83,26 @@ export default function NavBar() {
                   📋 My Challenges
                 </Link>
                 <div className="dropdown-divider" />
+                <div className="dropdown-item theme-selector">
+                  🎨 Theme:
+                  <div className="theme-buttons">
+                    <button
+                      className={theme === 'light' ? 'active' : ''}
+                      onClick={() => setTheme('light')}
+                      title="Light"
+                    >☀️</button>
+                    <button
+                      className={theme === 'dark' ? 'active' : ''}
+                      onClick={() => setTheme('dark')}
+                      title="Dark"
+                    >🌙</button>
+                    <button
+                      className={theme === 'high-contrast' ? 'active' : ''}
+                      onClick={() => setTheme('high-contrast')}
+                      title="High Contrast"
+                    >⬛</button>
+                  </div>
+                </div>
                 <button
                   className="dropdown-item logout-item"
                   onClick={handleLogout}
