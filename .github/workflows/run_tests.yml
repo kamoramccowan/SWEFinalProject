@@ -1,0 +1,53 @@
+name: Run Frontend + Backend Tests
+
+on:
+  push:
+    branches: [ main, add-tests-kelly ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+
+    # FRONTEND TESTING
+    
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Install frontend dependencies
+      working-directory: ./boggle-app
+      run: npm install --legacy-peer-deps
+
+    - name: Run frontend tests
+      working-directory: ./boggle-app
+      run: npm test -- --watchAll=false
+
+
+    # BACKEND TESTING
+  
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install backend dependencies
+      working-directory: ./boggle_backend
+      run: |
+        pip install --upgrade pip
+        pip install django djangorestframework django-cors-headers pytest pytest-django
+
+    - name: Run backend tests
+      working-directory: ./boggle_backend
+      env:
+        DJANGO_SETTINGS_MODULE: boggle_backend.settings
+      run: |
+        python manage.py migrate
+        pytest
