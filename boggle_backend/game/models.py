@@ -36,14 +36,25 @@ class Challenge(models.Model):
         (STATUS_DELETED, "Deleted"),
     ]
 
+    LANGUAGE_EN = "en"
+    LANGUAGE_ES = "es"
+    LANGUAGE_FR = "fr"
+    LANGUAGE_CHOICES = [
+        (LANGUAGE_EN, "English"),
+        (LANGUAGE_ES, "Spanish"),
+        (LANGUAGE_FR, "French"),
+    ]
+
     creator_user_id = models.CharField(max_length=255, db_index=True)
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
     grid = models.JSONField()
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES)
     valid_words = models.JSONField(default=list, blank=True)
     recipients = models.JSONField(default=list, blank=True)  # list of intended recipient identifiers
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    language = models.CharField(max_length=5, choices=LANGUAGE_CHOICES, default=LANGUAGE_EN)
     share_slug = models.CharField(max_length=32, unique=True, db_index=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

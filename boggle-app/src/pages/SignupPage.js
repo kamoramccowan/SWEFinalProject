@@ -7,10 +7,10 @@ import { signupWithEmailPassword } from "../firebaseClient";
 export default function SignupPage() {
   const navigate = useNavigate();
   const { loginWithToken, loading } = useAuth();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [localError, setLocalError] = useState("");
   const [localSuccess, setLocalSuccess] = useState("");
 
@@ -18,13 +18,17 @@ export default function SignupPage() {
     e.preventDefault();
     setLocalError("");
     setLocalSuccess("");
+    if (!username.trim()) {
+      setLocalError("Username is required.");
+      return;
+    }
     if (password !== confirmPassword) {
       setLocalError("Passwords do not match.");
       return;
     }
 
     try {
-      const token = await signupWithEmailPassword(email, password, displayName.trim() || undefined);
+      const token = await signupWithEmailPassword(email, password, username.trim());
       const ok = await loginWithToken(token);
       if (ok) {
         setLocalSuccess("Account created and signed in.");
@@ -46,16 +50,18 @@ export default function SignupPage() {
         <p className="subtitle">Create your account</p>
 
         <form onSubmit={handleSignup} className="stack">
-          <label htmlFor="displayName">Display name (optional)</label>
+          <label htmlFor="username">Username (shown to others)</label>
           <input
-            id="displayName"
+            id="username"
             type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Name shown to others"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Player name"
+            required
+            minLength={2}
           />
 
-          <label htmlFor="email">Email</label>
+          <label htmlFor="displayName">Email</label>
           <input
             id="email"
             type="email"

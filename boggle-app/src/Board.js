@@ -7,10 +7,11 @@ export default function Board({ board }) {
     ? board.map((row) => (Array.isArray(row) ? row : Object.values(row || {})))
     : Object.values(board || {}).map((row) => Object.values(row || {}));
 
-  const size = normalized.length || 0;
+  const rows = normalized.length || 0;
+  const cols = rows && normalized[0] ? normalized[0].length || 0 : 0;
 
   return (
-    <div className="Board-div" style={{ gridTemplateColumns: `repeat(${size || 1}, 1fr)` }}>
+    <div className="Board-div" style={{ gridTemplateColumns: `repeat(${cols || 1}, 1fr)` }}>
       {normalized.map((row, rIdx) =>
         row.map((cell, cIdx) => (
           <div className="Tile" key={`${rIdx}-${cIdx}`}>

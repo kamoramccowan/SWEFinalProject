@@ -1,23 +1,97 @@
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
+.stats-page {
+  padding: 28px;
 }
 
-.stat-card {
-  border: 1px solid #ddd;
-  padding: 12px;
-  border-radius: 8px;
-  background: #fff;
+.stats-page h2 {
+  margin: 0 0 24px 0;
+  font-size: 28px;
 }
 
-.value {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-top: 6px;
+.loading {
+  color: #666;
+  padding: 20px;
 }
 
 .error {
   color: #c00;
+  padding: 12px;
+  background: #fee;
+  border: 1px solid #fcc;
+  margin-bottom: 16px;
+}
+
+/* Stat Cards Row - matches mockup layout */
+.stat-cards-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-cards-row.secondary {
+  margin-top: 24px;
+}
+
+.stat-card {
+  border: 2px solid #1f1f1f;
+  padding: 16px;
+  background: #fff;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+/* Charts Row - side by side layout */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.chart-container {
+  border: 2px solid #1f1f1f;
+  padding: 20px;
+  background: #fff;
+}
+
+.chart-container h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.chart-wrapper {
+  height: 250px;
+  position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .stat-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .stat-cards-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
 }

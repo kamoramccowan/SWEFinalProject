@@ -33,6 +33,11 @@ export async function createChallenge(payload) {
   return resp.data;
 }
 
+export async function generateChallenge(size = 4, difficulty = 'medium', language = 'en') {
+  const resp = await api.post("/challenges/generate/", { size, difficulty, language });
+  return resp.data;
+}
+
 export async function fetchChallengeBySlug(slug) {
   const resp = await api.get(`/challenges/by-slug/${slug}/`);
   return resp.data;

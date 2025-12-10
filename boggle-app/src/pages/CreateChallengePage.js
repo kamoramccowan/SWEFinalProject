@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
 import "./CreateChallengePage.css";
-import { createChallenge } from "../api";
+import { createChallenge, generateChallenge } from "../api";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateChallengePage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState("easy");
+  const [language, setLanguage] = useState("en");
   const [gridText, setGridText] = useState("");
   const [timeLimit, setTimeLimit] = useState("3");
   const [customTime, setCustomTime] = useState("");
@@ -14,6 +15,7 @@ export default function CreateChallengePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const navigate = useNavigate();
 
   const boardTemplates = useMemo(
@@ -52,17 +54,41 @@ export default function CreateChallengePage() {
     }
   };
 
+  const handleAutoGenerate = async () => {
+    setError("");
+    setGenerating(true);
+    try {
+      const size = parseInt(boardSize.split("x")[0]);
+      const result = await generateChallenge(size, difficulty, language);
+      // Convert grid array to text format
+      const gridTextNew = result.grid.map(row => row.join("")).join("\n");
+      setGridText(gridTextNew);
+      setSuccess(`Generated grid with ${result.word_count} valid words!`);
+    } catch (err) {
+      setError(err.message || "Unable to generate grid.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
     try {
       const grid = parseGrid();
+      const minutes =
+        timeLimit === "custom"
+          ? Number(customTime || 0)
+          : Number(timeLimit || 0);
+      const duration_seconds = minutes > 0 ? minutes * 60 : undefined;
       setLoading(true);
       const created = await createChallenge({
         title,
         description,
         difficulty,
+        language,
+        duration_seconds,
         grid,
       });
       const challengeId = created?.id || created?.challenge_id;
@@ -168,7 +194,27 @@ export default function CreateChallengePage() {
           </div>
 
           <div className="field">
+            <label>Language</label>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+              <option value="en">English</option>
+              <option value="es">Spanish (Español)</option>
+              <option value="fr">French (Français)</option>
+            </select>
+            <div className="helper">Select language for word dictionary</div>
+          </div>
+
+          <div className="field">
             <label>Grid</label>
+            <div className="grid-header">
+              <button
+                type="button"
+                className="auto-generate-btn"
+                onClick={handleAutoGenerate}
+                disabled={generating}
+              >
+                {generating ? "Generating..." : "🎲 Auto Generate"}
+              </button>
+            </div>
             <textarea
               value={gridText}
               onChange={(e) => setGridText(e.target.value)}
@@ -176,6 +222,7 @@ export default function CreateChallengePage() {
               placeholder={boardTemplates["4x4"]}
               required
             />
+            <div className="helper">Enter letters row by row, or use Auto Generate for a solvable grid</div>
           </div>
 
           {error && <div className="error">{error}</div>}

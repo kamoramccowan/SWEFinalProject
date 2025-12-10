@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
     const mapped = {
       firebase_uid: fbUser.uid,
       email: fbUser.email || "",
-      display_name: fbUser.displayName || "",
+      display_name: fbUser.displayName || fbUser.email || "Player",
       is_registered: true,
       role: "registered",
     };

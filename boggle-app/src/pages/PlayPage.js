@@ -21,6 +21,7 @@ export default function PlayPage() {
   const [grid, setGrid] = useState([]);
   const [timerSeconds, setTimerSeconds] = useState(165); // 2:45 default
   const [timerRunning, setTimerRunning] = useState(false);
+  const [autoEnded, setAutoEnded] = useState(false);
 
   const displayGrid = useMemo(() => {
     if (daily && session && daily.challenge_id === session.challenge) {
@@ -29,13 +30,56 @@ export default function PlayPage() {
     return grid;
   }, [daily, session, grid]);
 
+  const persistedSessionKey = useMemo(() => (challengeId ? `play_session_${challengeId}` : null), [challengeId]);
+
   const formatTimer = (secs) => {
-    const m = Math.floor(secs / 60)
+    const safe = Math.max(0, secs);
+    const m = Math.floor(safe / 60)
       .toString()
       .padStart(2, "0");
-    const s = (secs % 60).toString().padStart(2, "0");
+    const s = (safe % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
+
+  const remainingFromServer = (sess) => {
+    const dur = Number(sess?.duration_seconds || sess?.duration || 165);
+    const started = sess?.start_time ? Date.parse(sess.start_time) : Date.now();
+    const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+    return Math.max(0, dur - elapsed);
+  };
+
+  // Restore previous session state (for reload)
+  useEffect(() => {
+    if (!persistedSessionKey) return;
+    try {
+      const raw = localStorage.getItem(persistedSessionKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved?.session) {
+        setSession(saved.session);
+        if (saved.grid) setGrid(saved.grid);
+        if (typeof saved.remaining_seconds === "number") {
+          setTimerSeconds(saved.remaining_seconds);
+          if (saved.remaining_seconds > 0) setTimerRunning(true);
+        }
+      }
+    } catch (e) {
+      // ignore corrupt storage
+    }
+  }, [persistedSessionKey]);
+
+  // Persist session state
+  useEffect(() => {
+    if (!persistedSessionKey || !session) return;
+    try {
+      localStorage.setItem(
+        persistedSessionKey,
+        JSON.stringify({ session, grid, remaining_seconds: timerSeconds })
+      );
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [persistedSessionKey, session, grid, timerSeconds]);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -46,10 +90,12 @@ export default function PlayPage() {
   }, [timerRunning]);
 
   useEffect(() => {
-    if (timerSeconds === 0) {
+    if (timerSeconds === 0 && timerRunning && session && !autoEnded) {
       setTimerRunning(false);
+      setAutoEnded(true);
+      handleEnd(true);
     }
-  }, [timerSeconds]);
+  }, [timerSeconds, timerRunning, session, autoEnded]);
 
   const samplePlayers = useMemo(
     () => [
@@ -60,6 +106,19 @@ export default function PlayPage() {
     ],
     []
   );
+  const friendlyPlayers = useMemo(() => {
+    const source = session?.players && session.players.length ? session.players : samplePlayers;
+    const seen = new Set();
+    return source.filter((p) => {
+      const key = p.name || p.player_user_id || JSON.stringify(p);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((p) => ({
+      ...p,
+      name: friendlyName(p.name || p.player_user_id),
+    }));
+  }, [session, samplePlayers]);
 
   useEffect(() => {
     const loadDaily = async () => {
@@ -90,13 +149,9 @@ export default function PlayPage() {
       const s = await startSession(Number(effectiveId));
       setSession(s);
       // If backend includes duration, set timer from it (seconds)
-      const duration = Number(s?.duration_seconds || s?.duration || 165);
-      if (!Number.isNaN(duration)) {
-        setTimerSeconds(duration);
-      } else {
-        setTimerSeconds(165);
-      }
-      setTimerRunning(true);
+      const remaining = remainingFromServer(s);
+      setTimerSeconds(Number.isNaN(remaining) ? 165 : remaining);
+      setTimerRunning(remaining > 0);
       // if daily provided grid
       if (daily && daily.challenge_id === s.challenge) {
         setGrid(daily.grid);
@@ -106,19 +161,19 @@ export default function PlayPage() {
         setGrid(s.grid);
       }
     } catch (err) {
-      setError("Unable to start session. Check challenge ID or auth.");
+      setTimerRunning(false);
+      setSession(null);
+      setGrid([]);
+      const status = err?.response?.status;
+      const detail =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        (status === 404 ? "Challenge not found." : status === 401 ? "Auth required." : "Unable to start session.");
+      setError(detail);
     } finally {
       setLoading(false);
     }
   };
-
-  // Auto-attempt start when navigated from create page with challenge query.
-  useEffect(() => {
-    if (challengeId && !session && !loading) {
-      handleStart();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challengeId, daily]);
 
   const handleSubmitWord = async (e) => {
     e.preventDefault();
@@ -142,12 +197,23 @@ export default function PlayPage() {
     }
   };
 
-  const handleEnd = async () => {
+  const handleEnd = async (auto = false) => {
     if (!session) return;
     try {
-      await endSession(session.id);
-      const res = await sessionResults(session.id);
-      setResults(res);
+      const endResp = await endSession(session.id);
+      if (endResp?.results) {
+        setResults(endResp.results);
+      } else {
+        const res = await sessionResults(session.id);
+        setResults(res);
+      }
+      setTimerRunning(false);
+      if (persistedSessionKey) {
+        localStorage.removeItem(persistedSessionKey);
+      }
+      if (auto) {
+        setMessages((m) => [...m, "Time up. Session ended."]);
+      }
     } catch (err) {
       setMessages((m) => [...m, "Unable to end session."]);
     }
@@ -161,7 +227,7 @@ export default function PlayPage() {
               {session ? session.challenge_title || session.title || "[Challenge]" : "[Challenge Name]"}
             </div>
             <div className="play-meta">
-            Round 1 of 3 • {boardSizeLabel(displayGrid)} Board • {difficultyLabel(session?.challenge_difficulty || session?.difficulty)}
+            Round 1 of 3 - {boardSizeLabel(displayGrid)} Board - {difficultyLabel(session?.challenge_difficulty || session?.difficulty)}
             </div>
             <div className="play-note">NOTE: Timer counts down • Turns red at :30 • Auto-submit at 0:00</div>
           </div>
@@ -183,7 +249,7 @@ export default function PlayPage() {
           )}
         </div>
         <div className="players-list">
-          {(session?.players && session.players.length ? session.players : samplePlayers).map((p, idx) => (
+          {friendlyPlayers.map((p, idx) => (
             <div className={`player-card ${p.leader ? "leader" : ""}`} key={idx}>
               <div className="player-line">
                 <span className="player-name">[{p.name}]</span>
@@ -204,19 +270,20 @@ export default function PlayPage() {
             defaultValue={challengeId || ""}
             readOnly
           />
-          <button onClick={handleStart} disabled={loading}>
+          <button onClick={handleStart} disabled={loading || (session && (timerRunning || results))}>
             {loading ? "Starting..." : "Start"}
           </button>
-          <button type="button" onClick={handleHint} disabled={!session}>Hint</button>
-          <button type="button" onClick={handleEnd} disabled={!session}>End Game</button>
+          <button type="button" onClick={handleHint} disabled={!session || !!results}>Hint</button>
+          <button type="button" onClick={handleEnd} disabled={!session || !!results}>End Game</button>
         </div>
         <form className="word-form" onSubmit={handleSubmitWord}>
           <input
             value={word}
             onChange={(e) => setWord(e.target.value)}
             placeholder="Enter word"
+            disabled={!session || !!results || autoEnded || !timerRunning}
           />
-          <button type="submit" disabled={!session}>Submit</button>
+          <button type="submit" disabled={!session || !!results || autoEnded || !timerRunning}>Submit</button>
         </form>
       </div>
 
@@ -250,3 +317,16 @@ function boardSizeLabel(grid) {
   const cols = Array.isArray(grid[0]) ? grid[0].length : Object.keys(grid[0]).length;
   return `${rows}x${cols}`;
 }
+
+function friendlyName(raw) {
+  if (!raw) return "Player";
+  const str = String(raw);
+  if (str.startsWith("fb_stub_")) {
+    return "Player";
+  }
+  if (str.length > 24) {
+    return `${str.slice(0, 12)}…${str.slice(-6)}`;
+  }
+  return str;
+}
+

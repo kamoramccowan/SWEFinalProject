@@ -2,10 +2,8 @@ from rest_framework import serializers
 
 from .models import Challenge, GameSession
 from .difficulty import get_difficulty_config, validate_grid_for_difficulty
-
-# Dev A scan (FR-02): We added a Challenge serializer here because no serializer existed in this app; a legacy serializer lives in the "api" app.
-# Plan for FR-03: Reuse Challenge model and add a slim list serializer for "my challenges" to avoid sending heavy fields; include recipients/status fields to match FR-03.
-# Plan for FR-05: Add GameSession serializer for starting challenge sessions, validating active challenge and binding player_user_id from request.
+from .word_solver import solve_boggle
+from django.utils import timezone
 # Plan for FR-06: Add a submission serializer for one-word submission.
 
 
@@ -18,7 +16,9 @@ class ChallengeSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'grid',
+            'duration_seconds',
             'difficulty',
+            'language',
             'valid_words',
             'recipients',
             'status',
@@ -54,6 +54,8 @@ class ChallengeSerializer(serializers.ModelSerializer):
         size = row_lengths.pop()
         if size == 0:
             raise serializers.ValidationError("Grid rows cannot be empty.")
+        if size not in {4, 5, 6}:
+            raise serializers.ValidationError("Grid size must be 4x4, 5x5, or 6x6.")
 
         normalized = []
         for row in value:
@@ -77,10 +79,21 @@ class ChallengeSerializer(serializers.ModelSerializer):
         attrs['creator_user_id'] = user_id
         difficulty = attrs.get('difficulty')
         grid = attrs.get('grid') or []
+        duration_seconds = attrs.get('duration_seconds')
         if difficulty and grid:
             cfg = get_difficulty_config(difficulty)
             if cfg and not validate_grid_for_difficulty(grid, difficulty):
                 raise serializers.ValidationError({"grid": [f"Grid must be {cfg['grid_size']}x{cfg['grid_size']} for {difficulty}."]})
+            if duration_seconds is None:
+                attrs['duration_seconds'] = cfg["duration_seconds"]
+        if duration_seconds is not None:
+            try:
+                val = int(duration_seconds)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"duration_seconds": ["Must be an integer (seconds)."]})
+            if val < 30 or val > 900:
+                raise serializers.ValidationError({"duration_seconds": ["Must be between 30 and 900 seconds."]})
+            attrs['duration_seconds'] = val
         return attrs
 
     def _get_request_user_id(self):
@@ -101,6 +114,23 @@ class ChallengeSerializer(serializers.ModelSerializer):
                 return str(user_id)
 
         return None
+
+    def create(self, validated_data):
+        """Create challenge and populate valid_words using the boggle solver."""
+        grid = validated_data.get('grid', [])
+        # Get language from validated_data (keep it for model save)
+        language = validated_data.get('language', 'en')
+        
+        # Solve the boggle to find all valid words
+        try:
+            valid_words = solve_boggle(grid, language=language)
+        except Exception as e:
+            # If solver fails, use empty list as fallback
+            valid_words = []
+        
+        validated_data['valid_words'] = valid_words
+        
+        return super().create(validated_data)
 
 
 class ChallengeListSerializer(serializers.ModelSerializer):
@@ -124,6 +154,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
     challenge = serializers.PrimaryKeyRelatedField(read_only=True)
     duration_seconds = serializers.IntegerField(read_only=True, allow_null=True)
     submissions = serializers.JSONField(read_only=True)
+    remaining_seconds = serializers.SerializerMethodField()
     challenge_title = serializers.SerializerMethodField()
     challenge_grid = serializers.SerializerMethodField()
     challenge_difficulty = serializers.SerializerMethodField()
@@ -142,6 +173,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             'duration_seconds',
             'score',
             'submissions',
+            'remaining_seconds',
             'challenge_title',
             'challenge_grid',
             'challenge_difficulty',
@@ -156,6 +188,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             'duration_seconds',
             'score',
             'submissions',
+            'remaining_seconds',
             'challenge_title',
             'challenge_grid',
             'challenge_difficulty',
@@ -178,11 +211,12 @@ class GameSessionSerializer(serializers.ModelSerializer):
         user_id = self._get_request_user_id()
         from .difficulty import get_difficulty_config
         cfg = get_difficulty_config(challenge.difficulty)
+        duration = challenge.duration_seconds or (cfg["duration_seconds"] if cfg else None)
         return GameSession.objects.create(
             challenge=challenge,
             player_user_id=user_id,
             mode=validated_data.get('mode', GameSession.MODE_CHALLENGE),
-            duration_seconds=cfg["duration_seconds"] if cfg else None,
+            duration_seconds=duration,
         )
 
     def get_challenge_title(self, obj):
@@ -200,6 +234,13 @@ class GameSessionSerializer(serializers.ModelSerializer):
             return obj.challenge.difficulty
         return None
 
+    def get_remaining_seconds(self, obj):
+        if obj.duration_seconds is None or obj.start_time is None:
+            return None
+        now = timezone.now()
+        elapsed = max(0, int((now - obj.start_time).total_seconds()))
+        return max(0, obj.duration_seconds - elapsed)
+
     def get_players(self, obj):
         """
         Return simple player list for the same challenge: name/email fallback, score, words, status, leader flag.
@@ -207,7 +248,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
         from accounts.models import User
 
         sessions = GameSession.objects.filter(challenge=obj.challenge).only(
-            "id", "player_user_id", "score", "end_time", "submissions"
+            "id", "player_user_id", "score", "end_time", "submissions", "start_time"
         )
         user_ids = {s.player_user_id for s in sessions if s.player_user_id}
 
@@ -217,34 +258,42 @@ class GameSessionSerializer(serializers.ModelSerializer):
         users_by_pk = {str(u.id): u for u in User.objects.filter(id__in=numeric_ids)} if numeric_ids else {}
         users_by_fb = {u.firebase_uid: u for u in User.objects.filter(firebase_uid__in=firebase_ids)} if firebase_ids else {}
 
-        players = []
+        players_map = {}
         for s in sessions:
-            uid = s.player_user_id
-            uid_str = str(uid) if uid is not None else None
+            uid = s.player_user_id or "guest"
+            uid_str = str(uid)
             user_obj = users_by_pk.get(uid_str) or users_by_fb.get(uid_str)
-            name = (
-                (user_obj.display_name or user_obj.email or user_obj.username)
-                if user_obj
-                else (uid or "Guest")
-            )
+            name = self._display_name(user_obj, uid_str)
             words = sum(1 for sub in s.submissions if sub.get("is_valid"))
             status = "Finished" if s.end_time else "Playing"
-            players.append(
-                {
+
+            existing = players_map.get(uid_str)
+            if not existing or (existing.get("score", 0) < (s.score or 0)):
+                players_map[uid_str] = {
                     "name": name,
                     "score": s.score or 0,
                     "words": words,
                     "status": status,
                     "leader": False,
                 }
-            )
 
-        # Mark leader
+        players = list(players_map.values())
         if players:
             top_score = max(p["score"] for p in players)
             for p in players:
                 p["leader"] = p["score"] == top_score
         return players
+
+    def _display_name(self, user_obj, uid_str):
+        if user_obj:
+            return user_obj.display_name or user_obj.email or user_obj.username or "Player"
+        if uid_str.startswith("stub_"):
+            return "Player"
+        if uid_str.startswith("fb_stub_"):
+            return "Player"
+        if len(uid_str) > 24:
+            return f"{uid_str[:12]}…{uid_str[-6:]}"
+        return uid_str or "Player"
 
     def _get_request_user_id(self):
         request = self.context.get('request')

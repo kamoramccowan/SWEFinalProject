@@ -7,6 +7,7 @@ from .views import (
     ChallengeShuffleView,
     ChallengeRotateView,
     ChallengeBySlugView,
+    ChallengeGenerateView,
     SessionCreateView,
     SessionSubmitWordView,
     SessionEndView,
@@ -19,6 +20,7 @@ from .views import (
 urlpatterns = [
     path('challenges/', ChallengeCreateView.as_view(), name='game_challenges_create'),
     path('challenges/mine/', ChallengeMineView.as_view(), name='game_challenges_mine'),
+    path('challenges/generate/', ChallengeGenerateView.as_view(), name='game_challenges_generate'),
     path('challenges/<int:pk>/', ChallengeDeleteView.as_view(), name='game_challenges_delete'),
     path('challenges/<int:pk>/shuffle/', ChallengeShuffleView.as_view(), name='game_challenges_shuffle'),
     path('challenges/<int:pk>/rotate/', ChallengeRotateView.as_view(), name='game_challenges_rotate'),
