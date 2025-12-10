@@ -19,18 +19,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-n(2x9%1kx4ms@@$f(!_6mj877229nu19ap#7i6sq7i@$uiatez'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-n(2x9%1kx4ms@@$f(!_6mj877229nu19ap#7i6sq7i@$uiatez')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 # For local development this is fine; tighten in real production.
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
-# CORS: allow requests from your React dev server
+# CORS: allow requests from React dev server and Firebase
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
+    'https://thee-boggle-boost-4ec28.web.app',
+    'https://thee-boggle-boost-4ec28.firebaseapp.com',
 ]
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL', 'False').lower() == 'true'
 
 
 # Application definition
@@ -51,9 +54,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     # CSRF / clickjacking middleware commented out for this class project;
     # enable these for a real deployment.
     # 'django.middleware.csrf.CsrfViewMiddleware',
@@ -131,6 +135,8 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'boggle_backend/static',
 ]
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -139,3 +145,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user model maps Firebase users to internal accounts.
 AUTH_USER_MODEL = 'accounts.User'
+
+# Database URL configuration for production (Railway provides DATABASE_URL)
+import dj_database_url
+if os.environ.get('DATABASE_URL'):
+    DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
