@@ -33,7 +33,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://thee-boggle-boost-4ec28.web.app',
     'https://thee-boggle-boost-4ec28.firebaseapp.com',
 ]
-CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL', 'False').lower() == 'true'
+CORS_ALLOW_ALL_ORIGINS = True  # Force enabled for debugging
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
