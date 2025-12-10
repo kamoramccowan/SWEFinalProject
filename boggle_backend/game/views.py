@@ -19,6 +19,10 @@ from .practice import create_practice_challenge
 from .difficulty import get_difficulty_config
 from .board_transforms import shuffle_grid, rotate_grid
 from .slug_utils import generate_share_slug
+from accounts.authentication import FirebaseAuthentication, FirebaseOptionalAuthentication
+from accounts.permissions import IsRegisteredUser
+from accounts.daily import record_daily_result
+from accounts.leaderboards import compute_session_rank, milestone_for_rank
 
 # Dev A scan (FR-02): No game endpoints existed; legacy challenge endpoints are in api/views.py.
 # Plan for FR-03: Add a "my challenges" listing that filters by authenticated user and reuses the Challenge model with a slim serializer.
@@ -32,6 +36,8 @@ class ChallengeCreateView(APIView):
     """
     Create a new challenge using the authenticated user's id as creator_user_id.
     """
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsRegisteredUser]
 
     def post(self, request):
         serializer = ChallengeSerializer(data=request.data, context={'request': request})
@@ -55,6 +61,8 @@ class ChallengeMineView(ListAPIView):
     """
 
     serializer_class = ChallengeListSerializer
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsRegisteredUser]
 
     def get_queryset(self):
         user_id = self._get_user_id()
@@ -81,6 +89,8 @@ class ChallengeDeleteView(APIView):
     """
     Soft-delete a challenge owned by the authenticated user (FR-04).
     """
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsRegisteredUser]
 
     def delete(self, request, pk):
         challenge = get_object_or_404(Challenge.objects.active(), pk=pk)
@@ -113,6 +123,7 @@ class SessionCreateView(APIView):
     """
     Start a game session for an active challenge (FR-05) or practice mode (FR-09).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def post(self, request):
         mode = (request.data.get('mode') or GameSession.MODE_CHALLENGE).lower()
@@ -128,6 +139,12 @@ class SessionCreateView(APIView):
                 duration_seconds=cfg["duration_seconds"] if cfg else None,
             )
             return Response(GameSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+        if not (request.user and getattr(request.user, "is_authenticated", False)):
+            return Response(
+                {"error_code": "AUTH_REQUIRED", "message": "Authentication is required to start a challenge session."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         serializer = GameSessionSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -170,6 +187,8 @@ class ChallengeBySlugView(APIView):
     """
     Fetch an active challenge by its shareable slug (FR-11).
     """
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsRegisteredUser]
 
     def get(self, request, share_slug):
         challenge = get_object_or_404(Challenge.objects.active(), share_slug=share_slug)
@@ -180,6 +199,7 @@ class ChallengeShuffleView(APIView, ChallengeTransformMixin):
     """
     Return a shuffled grid for an active challenge (FR-12).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def post(self, request, pk):
         challenge = self._get_active_challenge(pk)
@@ -219,6 +239,7 @@ class ChallengeRotateView(APIView, ChallengeTransformMixin):
     """
     Return a rotated grid for an active challenge (FR-12).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def post(self, request, pk):
         challenge = self._get_active_challenge(pk)
@@ -261,6 +282,7 @@ class SessionSubmitWordView(APIView):
     """
     Submit a single word to an active session (FR-06).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def post(self, request, pk):
         session = get_object_or_404(GameSession.objects.select_related('challenge'), pk=pk)
@@ -434,6 +456,7 @@ class SessionEndView(APIView):
     """
     Explicitly end a session (FR-06).
     """
+    authentication_classes = [FirebaseOptionalAuthentication]
 
     def post(self, request, pk):
         session = get_object_or_404(GameSession.objects.select_related('challenge'), pk=pk)
@@ -448,6 +471,22 @@ class SessionEndView(APIView):
             session.end_time = timezone.now()
             session.save(update_fields=['end_time'])
 
+        # Record daily challenge result if applicable
+        record_daily_result(
+            session.challenge,
+            getattr(request, "user", None),
+            session.score,
+            session_obj=session,
+            player_user_id=session.player_user_id,
+        )
+
+        # Compute rank and milestone for challenge sessions
+        rank_info = None
+        milestone = None
+        if session.mode == GameSession.MODE_CHALLENGE:
+            rank_info = compute_session_rank(session)
+            milestone = milestone_for_rank(rank_info.get("rank"))
+
         # Cleanup guest practice sessions/challenges after end
         if session.mode == GameSession.MODE_PRACTICE and session.player_user_id is None:
             challenge = session.challenge
@@ -455,9 +494,15 @@ class SessionEndView(APIView):
             # If no other sessions refer to this practice challenge, delete it too
             if not GameSession.objects.filter(challenge=challenge).exists():
                 challenge.delete()
-            return Response({"status": "ended_and_deleted", "session_id": pk}, status=status.HTTP_200_OK)
+            return Response(
+                {"status": "ended_and_deleted", "session_id": pk, "rank": rank_info, "milestone": milestone},
+                status=status.HTTP_200_OK,
+            )
 
-        return Response({"status": "ended", "session_id": session.id}, status=status.HTTP_200_OK)
+        return Response(
+            {"status": "ended", "session_id": session.id, "rank": rank_info, "milestone": milestone},
+            status=status.HTTP_200_OK,
+        )
 
     def _is_owner_or_guest(self, session, request):
         if session.player_user_id is None:

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
@@ -24,18 +26,24 @@ class ChallengeBySlugTests(APITestCase):
         )
         self.url = reverse('game_challenges_by_slug', args=[self.challenge.share_slug])
 
-    def test_get_by_slug(self):
-        resp = self.client.get(self.url)
+    @patch("accounts.authentication.verify_firebase_id_token")
+    def test_get_by_slug(self, mock_verify):
+        mock_verify.return_value = {"uid": "uid-123"}
+        resp = self.client.get(self.url, HTTP_AUTHORIZATION="Bearer token")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["id"], self.challenge.id)
         self.assertEqual(resp.data["share_slug"], self.challenge.share_slug)
 
-    def test_deleted_returns_404(self):
+    @patch("accounts.authentication.verify_firebase_id_token")
+    def test_deleted_returns_404(self, mock_verify):
+        mock_verify.return_value = {"uid": "uid-123"}
         self.challenge.status = Challenge.STATUS_DELETED
         self.challenge.save(update_fields=['status'])
-        resp = self.client.get(self.url)
+        resp = self.client.get(self.url, HTTP_AUTHORIZATION="Bearer token")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_unknown_slug_returns_404(self):
-        resp = self.client.get(reverse('game_challenges_by_slug', args=['unknown']))
+    @patch("accounts.authentication.verify_firebase_id_token")
+    def test_unknown_slug_returns_404(self, mock_verify):
+        mock_verify.return_value = {"uid": "uid-123"}
+        resp = self.client.get(reverse('game_challenges_by_slug', args=['unknown']), HTTP_AUTHORIZATION="Bearer token")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)

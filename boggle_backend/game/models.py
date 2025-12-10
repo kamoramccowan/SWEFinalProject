@@ -86,6 +86,7 @@ class GameSession(models.Model):
         indexes = [
             models.Index(fields=['challenge']),
             models.Index(fields=['player_user_id']),
+            models.Index(fields=['challenge', '-score', 'end_time']),
         ]
 
     def __str__(self):

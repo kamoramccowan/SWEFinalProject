@@ -28,18 +28,25 @@ class ChallengeApiTests(APITestCase):
             ["P", "L", "A", "Y"],
         ]
         payload = {
-            "creator": "user123",
+            "title": "Practice board",
+            "description": "Testing create",
             "difficulty": "easy",
-            "grid_size": 4,
             "grid": grid,
-            "clues": ["Animals", "Sports"],
-            "description": "Practice board",
         }
 
-        with mock.patch('api.serializers.generate_valid_words', return_value=["WORD", "PLAY"]):
-            response = self.client.post(reverse('challenges'), payload, format='json')
+        # Post to the Dev A challenge create endpoint (requires auth).
+        with mock.patch("accounts.authentication.verify_firebase_id_token") as mock_verify:
+            mock_verify.return_value = {"uid": "user123"}
+            response = self.client.post(
+                reverse("game_challenges_create"),
+                payload,
+                format="json",
+                HTTP_AUTHORIZATION="Bearer token",
+            )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["valid_words"], ["WORD", "PLAY"])
-        self.assertEqual(response.data["grid_size"], 4)
-        self.assertEqual(response.data["clues"], ["Animals", "Sports"])
+        # Dev A serializer stores normalized grid and leaves valid_words empty by default.
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["difficulty"], "easy")
+        self.assertEqual(response.data["valid_words"], [])
+        self.assertEqual(response.data["title"], "Practice board")
