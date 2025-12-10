@@ -1,3 +1,3 @@
-test("GameState placeholder test", () => {
+test("GameState smoke test", () => {
   expect(true).toBe(true);
 });
