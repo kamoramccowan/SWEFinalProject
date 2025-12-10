@@ -11,10 +11,11 @@ from .leaderboards import get_daily_leaderboard, get_challenge_leaderboard, comp
 from django.utils import timezone
 from game.models import GameSession, Challenge
 from .stats import compute_user_stats
-from accounts.models import UserSettings, ChallengeInvite, User
+from accounts.models import UserSettings, ChallengeInvite, User, WordDefinitionCache
 from accounts.privacy import can_receive_challenge
 from accounts.mail import send_challenge_email
 from django.conf import settings
+from accounts.dictionary_api import lookup_word_meaning, WordNotFound, DictionaryAPIError
 
 # Dev B scan (FR-01): No existing auth endpoints or custom User model; project relies on Django's default user with no Firebase integration.
 # Plan: add an accounts app with a custom User storing firebase_uid/display_name, a FirebaseAuthentication backend, a permission guard,
@@ -256,3 +257,40 @@ class SendChallengeView(APIView):
         if slug:
             return f"{base}/challenges/{slug}"
         return f"{base}/challenges/{challenge.id}"
+
+
+class WordDefinitionView(APIView):
+    """
+    Lookup a word's meaning via external dictionary API with caching (FR-19).
+    """
+
+    def get(self, request, word):
+        word_norm = (word or "").strip().lower()
+        if not word_norm:
+            return Response(
+                {"error_code": "VALIDATION_ERROR", "message": "Word is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cached = WordDefinitionCache.objects.filter(word=word_norm).first()
+        if cached:
+            return Response(cached.payload, status=status.HTTP_200_OK)
+
+        try:
+            payload = lookup_word_meaning(word_norm)
+        except WordNotFound as exc:
+            return Response(
+                {"error_code": "WORD_NOT_FOUND", "message": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except DictionaryAPIError as exc:
+            return Response(
+                {"error_code": "DICTIONARY_UNAVAILABLE", "message": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        WordDefinitionCache.objects.update_or_create(
+            word=word_norm,
+            defaults={"payload": payload},
+        )
+        return Response(payload, status=status.HTTP_200_OK)
