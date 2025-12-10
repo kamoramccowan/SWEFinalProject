@@ -96,3 +96,29 @@ class FirebaseAuthentication(BaseAuthentication):
         suffix = f"_{get_random_string(6).lower()}" if add_random_suffix else ""
         candidate = f"fb_{safe_uid}{suffix}"
         return candidate[:150]
+
+
+class FirebaseOptionalAuthentication(FirebaseAuthentication):
+    """
+    Optional variant: if no Authorization header is present, returns None instead of raising.
+    """
+
+    def _get_token_from_header(self, request) -> Optional[str]:
+        auth_header = get_authorization_header(request).decode("utf-8")
+        if not auth_header:
+            return None
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != self.keyword:
+            raise AuthenticationFailed(
+                {
+                    "error_code": "INVALID_AUTH_HEADER",
+                    "message": "Authorization header must be in the format: Bearer <token>.",
+                }
+            )
+        return parts[1]
+
+    def authenticate(self, request) -> Optional[Tuple[User, dict]]:
+        token = self._get_token_from_header(request)
+        if not token:
+            return None
+        return super().authenticate(request)

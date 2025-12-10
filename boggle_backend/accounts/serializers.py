@@ -6,12 +6,15 @@ User = get_user_model()
 
 class AuthenticatedUserSerializer(serializers.ModelSerializer):
     is_registered = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "firebase_uid", "email", "display_name", "is_registered")
+        fields = ("id", "firebase_uid", "email", "display_name", "is_registered", "role")
         read_only_fields = fields
 
     def get_is_registered(self, obj) -> bool:
-        # FR-10 will refine guest vs registered; default to True for now.
-        return True
+        return bool(obj and obj.is_authenticated)
+
+    def get_role(self, obj) -> str:
+        return "registered" if obj and obj.is_authenticated else "guest"

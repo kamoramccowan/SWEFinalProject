@@ -70,7 +70,7 @@ class SessionSubmitAndEndTests(APITestCase):
         self.client.force_authenticate(user=self.user)
         end_resp = self.client.post(self.end_url, {}, format='json')
         self.assertEqual(end_resp.status_code, status.HTTP_200_OK)
-
+        self.assertIn("rank", end_resp.data)
         submit_resp = self.client.post(self.submit_url, {"word": "after"}, format='json')
         self.assertEqual(submit_resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(submit_resp.data.get("error_code"), "TIME_UP")
