@@ -1,47 +1,23 @@
-import Grid from "@material-ui/core/Grid";
-import Paper from "@material-ui/core/Paper";
-import React from 'react';
-import './Board.css';
+import React from "react";
+import "./Board.css";
 
-function Board({board}) {
+export default function Board({ board }) {
+  // Normalize board to an array of arrays of strings
+  const normalized = Array.isArray(board)
+    ? board.map((row) => (Array.isArray(row) ? row : Object.values(row || {})))
+    : Object.values(board || {}).map((row) => Object.values(row || {}));
 
-  function tile(id, letter) {
-    return(
-      <Grid key={id} item xs={1} className="Tile">
-        <Paper elevation={4}>
-         {letter}
-        </Paper>
-      </Grid>
-    );
-  }
-
-  function rowOfTiles(id, rowObj) {
-    return (
-      <Grid key={id} container spacing={1} justify="space-around">
-        {Object.keys(rowObj).map((letterKey) => {
-          return tile(letterKey + id, rowObj[letterKey])
-        })}
-      </Grid>
-    );
-  }
-
-  function gridOfRows(board) {
-    return (
-      <Grid item xs={12}>
-        {Object.keys(board).map((rowKey) => {
-          return rowOfTiles(rowKey, board[rowKey])
-        })}
-      </Grid>
-    );
-  }
+  const size = normalized.length || 0;
 
   return (
-    <div className="Board-div">
-      <Grid container justify="center">
-        {gridOfRows(board)}
-      </Grid>
+    <div className="Board-div" style={{ gridTemplateColumns: `repeat(${size || 1}, 1fr)` }}>
+      {normalized.map((row, rIdx) =>
+        row.map((cell, cIdx) => (
+          <div className="Tile" key={`${rIdx}-${cIdx}`}>
+            <div className="Tile-inner">[{cell || " "}]</div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
-
-export default Board;

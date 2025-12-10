@@ -1,18 +1,18 @@
 .Board-div {
+  display: grid;
+  gap: 8px;
   max-width: 720px;
-  margin: 24px auto;
+  margin: 0 auto;
 }
 
-/* Each tile cell */
 .Tile {
   text-align: center;
-  font-size: 2.2rem;
+  font-size: 2rem;
   line-height: 1;
 }
 
-/* The Paper inside each tile */
-.Tile > div {
-  padding: 16px 0;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+.Tile-inner {
+  padding: 20px 0;
+  border: 2px solid #1f1f1f;
+  background: #fff;
 }

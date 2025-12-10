@@ -124,6 +124,10 @@ class GameSessionSerializer(serializers.ModelSerializer):
     challenge = serializers.PrimaryKeyRelatedField(read_only=True)
     duration_seconds = serializers.IntegerField(read_only=True, allow_null=True)
     submissions = serializers.JSONField(read_only=True)
+    challenge_title = serializers.SerializerMethodField()
+    challenge_grid = serializers.SerializerMethodField()
+    challenge_difficulty = serializers.SerializerMethodField()
+    players = serializers.SerializerMethodField()
 
     class Meta:
         model = GameSession
@@ -138,6 +142,10 @@ class GameSessionSerializer(serializers.ModelSerializer):
             'duration_seconds',
             'score',
             'submissions',
+            'challenge_title',
+            'challenge_grid',
+            'challenge_difficulty',
+            'players',
         ]
         read_only_fields = (
             'id',
@@ -148,6 +156,10 @@ class GameSessionSerializer(serializers.ModelSerializer):
             'duration_seconds',
             'score',
             'submissions',
+            'challenge_title',
+            'challenge_grid',
+            'challenge_difficulty',
+            'players',
         )
 
     def validate_challenge_id(self, value):
@@ -164,11 +176,75 @@ class GameSessionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         challenge = validated_data.pop('challenge_id')
         user_id = self._get_request_user_id()
+        from .difficulty import get_difficulty_config
+        cfg = get_difficulty_config(challenge.difficulty)
         return GameSession.objects.create(
             challenge=challenge,
             player_user_id=user_id,
             mode=validated_data.get('mode', GameSession.MODE_CHALLENGE),
+            duration_seconds=cfg["duration_seconds"] if cfg else None,
         )
+
+    def get_challenge_title(self, obj):
+        if obj.challenge_id and obj.challenge:
+            return obj.challenge.title
+        return None
+
+    def get_challenge_grid(self, obj):
+        if obj.challenge_id and obj.challenge:
+            return obj.challenge.grid
+        return None
+
+    def get_challenge_difficulty(self, obj):
+        if obj.challenge_id and obj.challenge:
+            return obj.challenge.difficulty
+        return None
+
+    def get_players(self, obj):
+        """
+        Return simple player list for the same challenge: name/email fallback, score, words, status, leader flag.
+        """
+        from accounts.models import User
+
+        sessions = GameSession.objects.filter(challenge=obj.challenge).only(
+            "id", "player_user_id", "score", "end_time", "submissions"
+        )
+        user_ids = {s.player_user_id for s in sessions if s.player_user_id}
+
+        numeric_ids = [uid for uid in user_ids if uid and str(uid).isdigit()]
+        firebase_ids = [uid for uid in user_ids if uid and not str(uid).isdigit()]
+
+        users_by_pk = {str(u.id): u for u in User.objects.filter(id__in=numeric_ids)} if numeric_ids else {}
+        users_by_fb = {u.firebase_uid: u for u in User.objects.filter(firebase_uid__in=firebase_ids)} if firebase_ids else {}
+
+        players = []
+        for s in sessions:
+            uid = s.player_user_id
+            uid_str = str(uid) if uid is not None else None
+            user_obj = users_by_pk.get(uid_str) or users_by_fb.get(uid_str)
+            name = (
+                (user_obj.display_name or user_obj.email or user_obj.username)
+                if user_obj
+                else (uid or "Guest")
+            )
+            words = sum(1 for sub in s.submissions if sub.get("is_valid"))
+            status = "Finished" if s.end_time else "Playing"
+            players.append(
+                {
+                    "name": name,
+                    "score": s.score or 0,
+                    "words": words,
+                    "status": status,
+                    "leader": False,
+                }
+            )
+
+        # Mark leader
+        if players:
+            top_score = max(p["score"] for p in players)
+            for p in players:
+                p["leader"] = p["score"] == top_score
+        return players
 
     def _get_request_user_id(self):
         request = self.context.get('request')

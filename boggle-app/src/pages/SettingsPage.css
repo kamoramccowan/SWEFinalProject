@@ -1,0 +1,27 @@
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-card {
+  border: 1px solid #ddd;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  color: #c00;
+}
+
+.success {
+  color: #0a7f2e;
+}

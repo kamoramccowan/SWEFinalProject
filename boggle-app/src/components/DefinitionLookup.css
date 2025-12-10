@@ -1,0 +1,20 @@
+.def-card {
+  border: 1px solid #ddd;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  margin-top: 12px;
+}
+
+.def-row {
+  display: flex;
+  gap: 8px;
+}
+
+.def-results ul {
+  padding-left: 20px;
+}
+
+.error {
+  color: #c00;
+}

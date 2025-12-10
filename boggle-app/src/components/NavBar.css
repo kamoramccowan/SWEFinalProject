@@ -1,0 +1,62 @@
+.nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #d4d8e5;
+  background: #f7f8fb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 18px;
+  text-decoration: none;
+  color: #222;
+}
+
+.nav-links a {
+  margin-right: 18px;
+  text-decoration: none;
+  color: #222;
+  font-weight: 500;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.username {
+  font-size: 0.95rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #0d6efd;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.user-menu {
+  border: 1px solid #1f1f1f;
+  padding: 6px 12px;
+  text-decoration: none;
+  color: #111;
+  font-weight: 600;
+}
+
+.user-menu:hover {
+  background: #f2f2f2;
+}
