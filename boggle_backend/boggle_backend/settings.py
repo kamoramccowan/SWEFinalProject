@@ -149,4 +149,4 @@ AUTH_USER_MODEL = 'accounts.User'
 # Database URL configuration for production (Railway provides DATABASE_URL)
 import dj_database_url
 if os.environ.get('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
+    DATABASES['default'] = dj_database_url.config(conn_max_age=600)
