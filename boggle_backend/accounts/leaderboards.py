@@ -19,12 +19,41 @@ def _session_queryset_for_challenge(challenge_id: int):
 
 
 def get_challenge_leaderboard(challenge_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Get leaderboard aggregated by user - one entry per user with their stats.
+    """
+    from django.db.models import Max, Count, Sum
+    
+    # Aggregate sessions by player_user_id
     qs = (
         _session_queryset_for_challenge(challenge_id)
-        .order_by("-score", "end_time", "id")
-        .values("player_user_id", "score", "end_time")
+        .values("player_user_id")
+        .annotate(
+            total_score=Sum("score"),
+            games_played=Count("id"),
+            best_score=Max("score"),
+        )
+        .order_by("-total_score", "-best_score")
     )[:limit]
-    entries = list(qs)
+    
+    entries = []
+    for row in qs:
+        entries.append({
+            "player_user_id": row["player_user_id"],
+            "score": row["best_score"],
+            "total_score": row["total_score"],
+            "games_played": row["games_played"],
+            "wins": 0,  # Will calculate below
+        })
+    
+    # Calculate wins (entries where this user had the highest score for the challenge)
+    # For simplicity, mark top scorer(s) as having 1 win per leaderboard
+    if entries:
+        top_score = entries[0]["total_score"]
+        for e in entries:
+            if e["total_score"] == top_score:
+                e["wins"] = 1
+    
     _attach_user_display_names(entries)
     _assign_ranks(entries)
     return entries
@@ -77,12 +106,12 @@ def _attach_user_display_names(entries: List[Dict[str, Any]]):
 
 
 def _assign_ranks(entries: List[Dict[str, Any]]):
+    """Assign ranks based on total_score (ties get same rank)."""
     last_score = None
-    last_end = None
     current_rank = 0
     for idx, e in enumerate(entries):
-        if e["score"] != last_score or e["end_time"] != last_end:
+        score = e.get("total_score") or e.get("score") or 0
+        if score != last_score:
             current_rank = idx + 1
-            last_score = e["score"]
-            last_end = e["end_time"]
+            last_score = score
         e["rank"] = current_rank

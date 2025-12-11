@@ -70,11 +70,28 @@ export function AuthProvider({ children }) {
     setAuthToken(null);
     setUser(null);
     // Best-effort Firebase sign-out so browser sessions are cleared client-side.
-    logoutFirebase().catch(() => {});
+    logoutFirebase().catch(() => { });
+  };
+
+  // Allow components to update user data (e.g., after profile save)
+  const updateUser = (updates) => {
+    setUser(prev => prev ? { ...prev, ...updates } : prev);
+  };
+
+  // Refresh user data from backend
+  const refreshUser = async () => {
+    try {
+      const data = await verifyLogin();
+      setUser(data);
+      return data;
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
+      return null;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginWithToken, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, loginWithToken, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

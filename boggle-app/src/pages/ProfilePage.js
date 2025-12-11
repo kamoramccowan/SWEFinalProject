@@ -9,7 +9,7 @@ const CLOUDINARY_CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'de
 const CLOUDINARY_UPLOAD_PRESET = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'ml_default';
 
 export default function ProfilePage() {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { theme, setTheme } = useTheme();
     const [avatarUrl, setAvatarUrl] = useState('');
     const [displayName, setDisplayName] = useState('');
@@ -87,6 +87,8 @@ export default function ProfilePage() {
         setMessage('');
         try {
             await updateProfile({ display_name: displayName, avatar_url: avatarUrl });
+            // Update the AuthContext so the new name appears everywhere
+            updateUser({ display_name: displayName, avatar_url: avatarUrl });
             setMessage('✅ Profile saved successfully!');
         } catch (err) {
             const detail = err?.response?.data?.message || 'Failed to save profile.';

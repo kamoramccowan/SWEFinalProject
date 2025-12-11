@@ -33,7 +33,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://thee-boggle-boost-4ec28.web.app',
     'https://thee-boggle-boost-4ec28.firebaseapp.com',
 ]
-CORS_ALLOW_ALL_ORIGINS = True  # Force enabled for debugging
+CORS_ALLOW_ALL_ORIGINS = False  # Force enabled for debugging
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -66,7 +66,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'boggle_backend.cors_middleware.CustomCorsMiddleware',  # Custom CORS - handles all CORS directly
+    #'boggle_backend.cors_middleware.CustomCorsMiddleware',  # Custom CORS - handles all CORS directly
+    'corsheaders.middleware.CorsMiddleware'
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

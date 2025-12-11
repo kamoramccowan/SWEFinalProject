@@ -74,14 +74,29 @@ export async function fetchSession(sessionId) {
   return resp.data;
 }
 
+export async function sessionHint(sessionId) {
+  const resp = await api.post(`/sessions/${sessionId}/hint/`);
+  return resp.data;
+}
+
+export async function sessionResults(sessionId) {
+  const resp = await api.get(`/sessions/${sessionId}/results/`);
+  return resp.data;
+}
+
 // Leaderboard
 export async function fetchLeaderboard(challengeId) {
-  const resp = await api.get(`/challenges/${challengeId}/leaderboard/`);
+  const resp = await api.get(`/leaderboards/challenge/${challengeId}/`);
   return resp.data;
 }
 
 export async function fetchGlobalLeaderboard() {
-  const resp = await api.get("/leaderboard/global/");
+  const resp = await api.get("/leaderboards/global/");
+  return resp.data;
+}
+
+export async function fetchDailyLeaderboard() {
+  const resp = await api.get("/leaderboards/daily/");
   return resp.data;
 }
 
@@ -96,6 +111,9 @@ export async function fetchUserStats() {
   const resp = await api.get("/stats/");
   return resp.data;
 }
+
+// Alias for backward compatibility
+export const fetchStats = fetchUserStats;
 
 // Profile
 export async function fetchProfile() {

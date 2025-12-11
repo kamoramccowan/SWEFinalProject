@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./CreateChallengePage.css";
 import { createChallenge, generateChallenge, inviteToChallenge } from "../api";
 import { useNavigate } from "react-router-dom";
@@ -24,12 +24,33 @@ export default function CreateChallengePage() {
 
   const boardTemplates = useMemo(
     () => ({
-      "4x4": "ABCD\nEFGH\nIJKL\nMNOP",
-      "5x5": "ABCDE\nFGHIJ\nKLMNO\nPQRST\nUVWXY",
-      "6x6": "ABCDEF\nGHIJKL\nMNOPQR\nSTUVWX\nYZABCD\nEFGHIJ",
+      "4x4": "",  // Don't use placeholders - encourage auto-generation
+      "5x5": "",
+      "6x6": "",
     }),
     []
   );
+
+  // Auto-generate a valid grid when the page loads
+  useEffect(() => {
+    const autoGenerate = async () => {
+      try {
+        setGenerating(true);
+        const size = parseInt(boardSize.split("x")[0]);
+        const result = await generateChallenge(size, difficulty, language);
+        const gridTextNew = result.grid.map(row => row.join("")).join("\n");
+        setGridText(gridTextNew);
+      } catch (err) {
+        // Silently fail - user can manually generate
+        console.error("Auto-generate failed:", err);
+      } finally {
+        setGenerating(false);
+      }
+    };
+    autoGenerate();
+    // Only run on mount, not on every change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Common Boggle digraphs (multi-letter tiles treated as one cell)
   const DIGRAPHS = ['QU', 'ST', 'IE', 'TH', 'AN', 'ER', 'IN', 'HE'];

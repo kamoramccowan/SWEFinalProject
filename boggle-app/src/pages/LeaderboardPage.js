@@ -71,9 +71,9 @@ export default function LeaderboardPage() {
             </thead>
             <tbody>
               {filteredEntries.map((entry, idx) => {
-                // Calculate derived values (mock data for demo)
-                const games = entry.games_played || Math.floor(Math.random() * 50) + 1;
-                const wins = entry.wins || Math.floor(games * 0.6);
+                // Use actual backend data, fallback to 0 for missing fields
+                const games = entry.games_played || 0;
+                const wins = entry.wins || 0;
                 const winRate = games > 0 ? ((wins / games) * 100).toFixed(1) : 0;
                 const totalScore = entry.total_score || entry.score || 0;
 
