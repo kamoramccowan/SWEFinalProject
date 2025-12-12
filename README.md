@@ -186,8 +186,11 @@ npx firebase deploy --only hosting
 
 ## 👥 Team
 
+- Lum Kelly Chelsie Choh
+- Nia Greene
+- Kamora Jhenne McCowan
 - Ibrahim Osman
-- Kamora McCowan
+- Michael Cobbins
 
 ## 📄 License
 
